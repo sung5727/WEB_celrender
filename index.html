@@ -3,71 +3,50 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>출근 월간 캘린더 (공휴일 API + 엑셀 불러오기 + 월 전체삭제)</title>
+<title>출근 월간 캘린더 (공휴일 API + 구글시트 불러오기 + 월 전체삭제)</title>
 <style>
   :root{
-    --primary:#16a34a;
-    --red:#e11d48;
-    --blue:#2563eb;
-    --text:#222;
-    --sub:#6b7280;
-    --border:#e5e7eb;
-    --bg:#f8fafc;
-    --card:#ffffff;
+    --primary:#16a34a; --red:#e11d48; --blue:#2563eb;
+    --text:#222; --sub:#6b7280; --border:#e5e7eb;
+    --bg:#f8fafc; --card:#ffffff;
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;color:var(--text)}
+  body{margin:0;background:var(--bg);
+       font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+       color:var(--text)}
   .wrap{max-width:740px;margin:0 auto;padding:12px}
   .card{background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:0 4px 10px rgba(0,0,0,.04);overflow:hidden}
   .topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);gap:8px}
-  .navbtn{width:36px;height:36px;border-radius:999px;border:1px solid var(--border);background:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1}
+  .navbtn{width:36px;height:36px;border-radius:999px;border:1px solid var(--border);background:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;cursor:pointer}
   .title{font-weight:700;font-size:20px;display:flex;align-items:center;gap:8px}
-  .actions{display:flex;gap:8px}
-  .mini{height:36px;padding:0 12px;border-radius:9px;border:1px solid var(--border);background:#fff;font-weight:600;font-size:13px}
+  .actions{display:flex;gap:8px;flex-wrap:wrap}
+  .mini{height:36px;padding:0 12px;border-radius:9px;border:1px solid var(--border);background:#fff;font-weight:600;font-size:13px;cursor:pointer}
   .weekday{display:grid;grid-template-columns:repeat(7,1fr);background:#f3f4f6;border-bottom:1px solid var(--border)}
   .weekday div{padding:10px 0;text-align:center;font-weight:600;color:var(--sub)}
-  .weekday div:first-child{color:var(--red)}
-  .weekday div:last-child{color:var(--blue)}
+  .weekday div:first-child{color:var(--red)} .weekday div:last-child{color:var(--blue)}
   .grid{display:grid;grid-template-columns:repeat(7,1fr);}
   .cell{height:72px;padding:6px 8px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);position:relative;background:#fff}
   .grid .cell:nth-child(7n){border-right:none}
   .date{font-weight:700}
-  .sun{color:var(--red)}
-  .sat{color:var(--blue)}
+  .sun{color:var(--red)} .sat{color:var(--blue)}
   .muted{color:#c7cdd7}
   .today{outline:2px solid var(--primary);outline-offset:-2px;border-radius:8px}
 
-  /* 공휴일 배지: 날짜 바로 아래(왼쪽) */
+  /* 공휴일 라벨 */
   .holiday-badge{
     position:absolute;left:6px;top:24px;font-size:10px;
     color:var(--red);font-weight:700;white-space:nowrap
   }
 
-  /* 출근시간 표시(오른쪽 하단) - 기본 스타일 */
-  .time {
-  position:absolute;
-  bottom:0;       /* 칸 맨 아래 붙이기 */
-  left:0;
-  width:100%;     /* 가로 전체 채움 */
-  height:22px;    /* 원하는 높이 */
-  line-height:22px;
-  text-align:center;
-  font-size:12px;
-  font-weight:600;
-  border-radius:0;  /* 모서리 둥글기 제거 (원하면 살려도 됨) */
-}
-  /* 7시 / 8시: 연한 회색 배경 + 검정 글씨 */
-  .time.sevenEight{
-    background:#d1d5db; color:#000;
+  /* 시간 바: 칸 하단 100% 꽉 채움 */
+  .time{
+    position:absolute;left:0;right:0;bottom:0;width:100%;
+    height:22px;line-height:22px;text-align:center;
+    font-size:12px;font-weight:600;border-radius:0;
   }
-  /* 12시: 주황 배경 + 흰 글씨 */
-  .time.noon{
-    background:orange; color:#000;
-  }
-  /* 휴무: 연두 배경 + 초록 글씨 */
-  .time.off{
-    background:#d1fae5; color:#16a34a;
-  }
+  .time.sevenEight{ background:#d1d5db; color:#000; }   /* 7/8시: 회색 */
+  .time.noon{ background:orange; color:#fff; }          /* 12시: 주황 */
+  .time.off{ background:#d1fae5; color:#16a34a; }       /* 휴무: 연두/초록 */
 
   /* 공휴일 상태 텍스트는 화면에 숨김 */
   #apiStatus { display:none !important; }
@@ -77,7 +56,7 @@
   .sheet{width:100%;max-width:740px;margin:0 auto;background:#fff;border-top-left-radius:16px;border-top-right-radius:16px;padding:16px;box-shadow:0 -6px 20px rgba(0,0,0,.15)}
   .sheet h3{margin:0 0 10px 0;font-size:16px}
   .controls{display:flex;gap:8px;margin-top:12px}
-  button{height:40px;border-radius:10px;border:1px solid var(--border);background:#fff;padding:0 14px;font-weight:600}
+  button{height:40px;border-radius:10px;border:1px solid var(--border);background:#fff;padding:0 14px;font-weight:600;cursor:pointer}
   .primary{background:var(--primary);border-color:var(--primary);color:#fff}
   .danger{background:#fff;border-color:#ef4444;color:#ef4444}
   select{width:100%;height:44px;border:1px solid var(--border);border-radius:10px;padding:0 10px;font-size:16px;background:#fff}
@@ -93,8 +72,8 @@
           <span id="apiStatus" aria-live="polite"></span>
         </div>
         <div class="actions">
-          <button class="mini" id="importBtn" title="엑셀에서 불러오기">업로드</button>
-          <button class="mini" id="wipeMonthBtn" title="현재 보고있는 달의 입력 전체 삭제">삭제</button>
+          <button class="mini" id="gsImportBtn" title="구글 스프레드시트에서 불러오기">구글 시트 불러오기</button>
+          <button class="mini" id="wipeMonthBtn" title="현재 보고있는 달의 입력 전체 삭제">해당월 전체 삭제</button>
           <button class="navbtn" id="nextBtn" aria-label="다음 달">▶</button>
         </div>
       </div>
@@ -124,25 +103,19 @@
     </div>
   </div>
 
-  <!-- 파일 선택(숨김) -->
-  <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none" />
-
-  <!-- SheetJS (XLSX 파서) -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
 <script>
   /* ========= 설정 ========= */
-  const SERVICE_KEY = "f3fe3ff25a8fe96c692eacced03e726ebf3443ee7cdd8e50a1d06a1b0d7ee8cf"; // ← 본인 공휴일 API 키를 넣으세요
-  const HOLIDAY_TTL_DAYS = 7;          // 공휴일 캐시 유지 기간(일)
+  const SERVICE_KEY = "f3fe3ff25a8fe96c692eacced03e726ebf3443ee7cdd8e50a1d06a1b0d7ee8cf";              // 공휴일 API 키
+  const HOLIDAY_TTL_DAYS = 7;                        // 공휴일 캐시 일수
+  const GS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbx3ZPL_G3z4WMOd075ISSFknzIgIBcMPSGAewBh3VuNtW1JxjIQ1KObzolMVKt27oz-/exec"; // Apps Script /exec URL
 
   /* ========= 엘리먼트 ========= */
   const grid = document.getElementById('grid');
   const monthTitle = document.getElementById('monthTitle');
   const prevBtn = document.getElementById('prevBtn');
   const nextBtn = document.getElementById('nextBtn');
-  const importBtn = document.getElementById('importBtn');
+  const gsImportBtn = document.getElementById('gsImportBtn');
   const wipeMonthBtn = document.getElementById('wipeMonthBtn');
-  const fileInput = document.getElementById('fileInput');
   const modal = document.getElementById('modal');
   const modalDate = document.getElementById('modalDate');
   const timeSelect = document.getElementById('timeSelect');
@@ -173,21 +146,18 @@
     if (!res.ok) throw new Error('API 응답 오류: ' + res.status);
     const data = await res.json();
     const items = (((data||{}).response||{}).body||{}).items;
-
     const arr = items && items.item
       ? (Array.isArray(items.item) ? items.item : [items.item])
       : [];
-
     const map = {};
     for (const it of arr) {
-      const ymd = String(it.locdate); // 20250129
+      const ymd = String(it.locdate);
       if (!/^\d{8}$/.test(ymd)) continue;
       const key = `${ymd.slice(0,4)}-${ymd.slice(4,6)}-${ymd.slice(6,8)}`;
-      map[key] = it.dateName;         // 설날/추석/대체공휴일 등
+      map[key] = it.dateName;
     }
     return map;
   }
-
   async function fetchHolidaysForYear(year) {
     try {
       const promises = [];
@@ -195,12 +165,11 @@
       const monthly = await Promise.all(promises);
       const all = Object.assign({}, ...monthly);
       return { data: all, ts: Date.now() };
-    } catch (e) {
+    } catch(e){
       console.error(e);
       return { data: {}, ts: 0 };
     }
   }
-
   async function getHolidayMap(year){
     const key = holidayCacheKey(year);
     const cached = localStorage.getItem(key);
@@ -208,10 +177,10 @@
       try {
         const obj = JSON.parse(cached);
         if (isCacheFresh(obj.ts)) {
-          apiStatus.textContent = '공휴일 캐시 사용'; // 화면에는 숨김
+          apiStatus.textContent = '공휴일 캐시 사용'; // 화면엔 숨김
           return obj.data || {};
         }
-      } catch {}
+      } catch{}
     }
     apiStatus.textContent = '공휴일 불러오는 중…';
     const fresh = await fetchHolidaysForYear(year);
@@ -266,7 +235,7 @@
         const k = keyOf(y,m,dayIndex);
         const value = store[k];
 
-        // 공휴일 배지
+        // 공휴일 라벨
         if (holidayMap[k]) {
           cell.classList.add('sun');
           const badge = document.createElement('div');
@@ -275,20 +244,18 @@
           cell.appendChild(badge);
         }
 
-        // 출근시간 표시 (오른쪽 하단)
+        // 시간 바
         if(value){
           const t = document.createElement('div');
           t.className = 'time';
           t.textContent = value;
-
           if (value === '7시' || value === '8시') t.classList.add('sevenEight');
           if (value === '12시') t.classList.add('noon');
           if (value === '휴무') t.classList.add('off');
-
           cell.appendChild(t);
         }
 
-        // 오늘 강조
+        // 오늘 표시
         if(today.getFullYear()===y && today.getMonth()===m && today.getDate()===dayIndex){
           cell.classList.add('today');
         }
@@ -340,99 +307,48 @@
   cancelBtn.addEventListener('click', closeModal);
   modal.addEventListener('click', (e)=>{ if(e.target===modal) closeModal(); });
 
-  /* ========= 엑셀 불러오기 ========= */
-  function toKeyFromExcelDate(v){
-    if (v == null || v === '') return null;
-    if (typeof v === 'number') {
-      const date = XLSX.SSF.parse_date_code(v);
-      if (!date) return null;
-      const y = date.y, m = date.m, d = date.d;
-      return `${y}-${pad(m)}-${pad(d)}`;
-    }
-    let s = String(v).trim();
-    s = s.replace(/[./]/g, '-').replace(/\s+/g, '');
-    const mm = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-    if (mm) {
-      const y = parseInt(mm[1],10), mo = parseInt(mm[2],10), d = parseInt(mm[3],10);
-      if (!isNaN(y) && !isNaN(mo) && !isNaN(d)) return `${y}-${pad(mo)}-${pad(d)}`;
-    }
-    const dt = new Date(s);
-    if (!isNaN(dt)) return `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`;
-    return null;
-  }
-  function normalizeHeader(h){
-    if(!h) return '';
-    return String(h).toLowerCase().replace(/\s+/g,'').replace(/[^\w가-힣]/g,'');
-  }
-  function isWorkTimeValue(v){
-    return v === '7시' || v === '8시' || v === '12시' || v === '휴무';
+  /* ========= (보수용) 클라이언트 시간 정규화 ========= */
+  function normTimeClient(v){
+    let s = String(v || '').trim();
+    s = s.replace(/\s+/g,'').replace(/오전|오후/gi,'').replace(/:00$/,'').replace(/시$/,'').replace(/^0+/,'');
+    if (s === '7')  return '7시';
+    if (s === '8')  return '8시';
+    if (s === '12') return '12시';
+    if (/^(휴무|휴일|off)$/i.test(s)) return '휴무';
+    return '';
   }
 
-  importBtn.addEventListener('click', ()=> fileInput.click());
-  fileInput.addEventListener('change', async (e)=>{
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
+  /* ========= 구글 시트 불러오기 ========= */
+  async function importFromGoogleSheet(){
+    try{
+      const res = await fetch(GS_WEBAPP_URL + '?_=' + Date.now()); // 캐시방지
+      if (!res.ok) throw new Error('웹앱 응답 오류: ' + res.status);
+      const j = await res.json();
+      if (!j.ok) throw new Error(j.error || '시트 데이터 오류');
 
-    try {
-      const ext = (file.name.split('.').pop() || '').toLowerCase();
-      let rows = [];
+      const sheetData = j.data || {};
+      const merged = { ...getStore() };
+      let applied = 0;
 
-      if (ext === 'csv') {
-        const text = await file.text();
-        rows = text.split(/\r?\n/).map(r => r.split(','));
-      } else {
-        const data = await file.arrayBuffer();
-        const wb = XLSX.read(data, { type:'array' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        rows = XLSX.utils.sheet_to_json(ws, { header:1, raw:true });
+      for (const [k, vRaw] of Object.entries(sheetData)) {
+        const v = normTimeClient(vRaw); // 혹시 모를 변형값 보정
+        if (v) { merged[k] = v; applied++; }
       }
-
-      if (!rows.length) { alert('엑셀/CSV에서 데이터를 찾지 못했습니다.'); return; }
-
-      const header = rows[0] || [];
-      const nh = header.map(normalizeHeader);
-
-      const idxDate = nh.findIndex(x => ['날짜','date','일자'].includes(x));
-      const idxTime = nh.findIndex(x => ['출근시간','출근','근무','time','근무시간'].includes(x));
-      if (idxDate === -1 || idxTime === -1) {
-        alert('헤더에 "날짜"와 "출근시간" 열이 필요합니다. (예: 날짜, 요일, 출근시간)');
-        return;
-      }
-
-      const store = getStore();
-      let applied = 0, skipped = 0;
-      for (let r = 1; r < rows.length; r++){
-        const row = rows[r];
-        if (!row || row.length === 0) continue;
-
-        const rawDate = row[idxDate];
-        const key = toKeyFromExcelDate(rawDate);
-        if (!key) { skipped++; continue; }
-
-        const rawTime = (row[idxTime] ?? '').toString().trim();
-        if (!isWorkTimeValue(rawTime)) { skipped++; continue; }
-
-        store[key] = rawTime;
-        applied++;
-      }
-
-      setStore(store);
+      setStore(merged);
       render();
-      alert(`불러오기 완료\n적용: ${applied}건, 건너뜀: ${skipped}건`);
-    } catch(err){
+      alert(`구글 시트 불러오기 완료\n적용: ${applied}건`);
+    } catch (err){
       console.error(err);
-      alert('엑셀 불러오기에 실패했습니다. 파일 형식과 헤더를 확인해주세요.');
-    } finally {
-      fileInput.value = '';
+      alert('구글 시트 불러오기에 실패했습니다: ' + err.message);
     }
-  });
+  }
+  gsImportBtn.addEventListener('click', importFromGoogleSheet);
 
   /* ========= 해당월 전체 삭제 ========= */
   function wipeCurrentMonth(){
     const y = state.year, m = state.month;
     const lastDate = new Date(y,m+1,0).getDate();
     const store = getStore();
-
     let count = 0;
     for (let d=1; d<=lastDate; d++){
       const k = keyOf(y,m,d);
@@ -444,7 +360,6 @@
     setStore(store);
     return count;
   }
-
   wipeMonthBtn.addEventListener('click', ()=>{
     const label = `${state.year}-${pad(state.month+1)}`;
     if (!confirm(`"${label}" 월의 입력을 모두 삭제할까요?\n(되돌릴 수 없습니다)`)) return;
@@ -456,6 +371,5 @@
   /* ========= 시작 ========= */
   render();
 </script>
-
 </body>
 </html>
