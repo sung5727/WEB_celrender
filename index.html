@@ -3,12 +3,10 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>출근 월간 캘린더 (WebApp 동기화 + 엑셀 불러오기/내보내기)</title>
+<title>출근 월간 캘린더 (Google Sheets 불러오기)</title>
 <style>
-  :root{
-    --primary:#16a34a; --red:#e11d48; --blue:#2563eb; --text:#222;
-    --sub:#6b7280; --border:#e5e7eb; --bg:#f8fafc; --card:#ffffff;
-  }
+  :root{ --primary:#16a34a; --red:#e11d48; --blue:#2563eb; --text:#222;
+         --sub:#6b7280; --border:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;color:var(--text)}
   .wrap{max-width:740px;margin:0 auto;padding:12px}
@@ -18,6 +16,7 @@
   .title{font-weight:700;font-size:20px;display:flex;align-items:center;gap:8px}
   .actions{display:flex;gap:8px}
   .mini{height:36px;padding:0 12px;border-radius:9px;border:1px solid var(--border);background:#fff;font-weight:600;font-size:13px;cursor:pointer}
+
   .weekday{display:grid;grid-template-columns:repeat(7,1fr);background:#f3f4f6;border-bottom:1px solid var(--border)}
   .weekday div{padding:10px 0;text-align:center;font-weight:600;color:var(--sub)}
   .weekday div:first-child{color:var(--red)}
@@ -30,18 +29,14 @@
   .muted{color:#c7cdd7}
   .today{outline:2px solid var(--primary);outline-offset:-2px;border-radius:8px}
 
-  .holiday-badge{
-    position:absolute;left:6px;top:24px;font-size:10px;color:var(--red);font-weight:700;white-space:nowrap
-  }
+  .holiday-badge{ position:absolute;left:6px;top:24px;font-size:10px;color:var(--red);font-weight:700;white-space:nowrap }
 
-  .time{
-    position:absolute;bottom:0;left:0;width:100%;
-    height:22px;line-height:22px;text-align:center;font-size:12px;font-weight:600;border-radius:0;
-  }
-  .time.sevenEight{ background:#d1d5db; color:#000; }
-  .time.noon{ background:orange; color:#000; }
-  .time.off{ background:#d1fae5; color:#16a34a; }
-  .time.special{ background:#000; color:#fff; }
+  .time{ position:absolute;bottom:0;left:0;width:100%;height:22px;line-height:22px;
+         text-align:center;font-size:12px;font-weight:600;border-radius:0; }
+  .time.sevenEight{ background:#d1d5db; color:#000; } /* 7/8시: 회색 */
+  .time.noon{ background:orange; color:#000; }       /* 12시: 주황 */
+  .time.off{ background:#d1fae5; color:#16a34a; }   /* 휴무: 연두 */
+  .time.special{ background:#000; color:#fff; }     /* 연차/병가/공가/출장/돌봄/사가독서: 검정 */
 
   #apiStatus{ display:none !important; }
 
@@ -60,13 +55,9 @@
     <div class="card">
       <div class="topbar">
         <button class="navbtn" id="prevBtn" aria-label="이전 달">◀</button>
-        <div class="title">
-          <span id="monthTitle">YYYY. MM.</span>
-          <span id="apiStatus" aria-live="polite"></span>
-        </div>
+        <div class="title"><span id="monthTitle">YYYY. MM.</span><span id="apiStatus"></span></div>
         <div class="actions">
-          <button class="mini" id="importBtn" title="엑셀/CSV 불러오기">업로드</button>
-          <button class="mini" id="excelExportBtn" title="현재 달 전체 내보내기">내보내기</button>
+          <button class="mini" id="sheetLoadBtn">시트 불러오기</button>
           <button class="navbtn" id="nextBtn" aria-label="다음 달">▶</button>
         </div>
       </div>
@@ -77,10 +68,11 @@
     </div>
   </div>
 
+  <!-- 수동 입력 모달(로컬 전용) -->
   <div id="modal" aria-modal="true" role="dialog">
     <div class="sheet">
       <h3 id="modalDate">YYYY-MM-DD 출근/상태</h3>
-      <select id="timeSelect" aria-label="출근/상태 선택">
+      <select id="timeSelect">
         <option value="">선택</option>
         <option value="7시">7시</option>
         <option value="8시">8시</option>
@@ -94,101 +86,83 @@
         <option value="사가독서">사가독서</option>
       </select>
       <div class="controls">
-        <button class="primary" id="saveBtn">저장</button>
-        <button class="danger" id="clearBtn">삭제</button>
+        <button class="primary" id="saveBtn">저장(로컬)</button>
+        <button class="danger" id="clearBtn">삭제(로컬)</button>
         <button id="cancelBtn">취소</button>
       </div>
+      <p style="margin:8px 0 0;color:#6b7280;font-size:12px">
+        * “시트 불러오기”를 하면 구글시트 내용으로 다시 덮어씁니다.
+      </p>
     </div>
   </div>
 
-  <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none" />
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
 <script>
-  /* ========= 설정 ========= */
-  const SERVICE_KEY = "";  // 공휴일 API (없어도 작동)
+  /* ====== 환경설정 ====== */
+  const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwOsLnB6PqwsmzpDQvAyjSQkE9T81S2bBFrWVcpOS3bEZNeyU9x8VlyU71urs8mfk1I/exec'; // 예: https://script.google.com/macros/s/XXXX/exec
+  const SERVICE_KEY = ""; // (옵션) 공휴일 API 키가 있으면 넣으세요
   const USE_HOLIDAYS = !!SERVICE_KEY;
   const HOLIDAY_TTL_DAYS = 7;
 
-  /* ========= 엘리먼트 ========= */
+  /* ====== 엘리먼트 ====== */
   const grid = document.getElementById('grid');
   const monthTitle = document.getElementById('monthTitle');
   const prevBtn = document.getElementById('prevBtn');
   const nextBtn = document.getElementById('nextBtn');
-  const importBtn = document.getElementById('importBtn');
-  const excelExportBtn = document.getElementById('excelExportBtn');
-  const fileInput = document.getElementById('fileInput');
+  const sheetLoadBtn = document.getElementById('sheetLoadBtn');
   const modal = document.getElementById('modal');
   const modalDate = document.getElementById('modalDate');
   const timeSelect = document.getElementById('timeSelect');
   const saveBtn = document.getElementById('saveBtn');
-  const cancelBtn = document.getElementById('cancelBtn');
   const clearBtn = document.getElementById('clearBtn');
-  const apiStatus = document.getElementById('apiStatus');
+  const cancelBtn = document.getElementById('cancelBtn');
 
-  /* ========= 상태/유틸 ========= */
-  let state = (()=>{ const now = new Date(); return { year: now.getFullYear(), month: now.getMonth() }; })();
+  /* ====== 상태/유틸 ====== */
+  let state = (()=>{ const now=new Date(); return {year:now.getFullYear(), month:now.getMonth()}; })();
   let selectedKey = null;
   const storeKey = 'workTimes';
-
-  function getStore(){ try{ return JSON.parse(localStorage.getItem(storeKey) || '{}'); } catch(e){ return {}; } }
+  function getStore(){ try{ return JSON.parse(localStorage.getItem(storeKey) || '{}'); }catch{ return {}; } }
   function setStore(data){ localStorage.setItem(storeKey, JSON.stringify(data)); }
   function pad(n){ return n.toString().padStart(2,'0'); }
   function keyOf(y,m,d){ return `${y}-${pad(m+1)}-${pad(d)}`; }
 
-  /* ========= 공휴일(옵션) ========= */
+  /* ====== (옵션) 공휴일 ====== */
   function holidayCacheKey(year){ return `holidays_${year}_v3`; }
-  function isCacheFresh(ts){ return ts && (Date.now() - ts) <= HOLIDAY_TTL_DAYS*86400000; }
-  async function fetchHolidaysByMonth(year, month) {
+  function isCacheFresh(ts){ return ts && (Date.now()-ts) <= HOLIDAY_TTL_DAYS*86400000; }
+  async function fetchHolidaysByMonth(year, month){
     try{
       const solMonth = pad(month+1);
-      const url = `https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo?`+
-                  `solYear=${year}&solMonth=${solMonth}&numOfRows=100&_type=json&ServiceKey=${encodeURIComponent(SERVICE_KEY)}`;
+      const url = `https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo?solYear=${year}&solMonth=${solMonth}&numOfRows=100&_type=json&ServiceKey=${encodeURIComponent(SERVICE_KEY)}`;
       const res = await fetch(url);
-      if (!res.ok) throw new Error('HTTP '+res.status);
+      if(!res.ok) throw new Error(res.status);
       const data = await res.json();
       const items = (((data||{}).response||{}).body||{}).items;
-      const arr = items && items.item ? (Array.isArray(items.item) ? items.item : [items.item]) : [];
+      const arr = items && items.item ? (Array.isArray(items.item)?items.item:[items.item]) : [];
       const map = {};
-      for (const it of arr) {
+      for(const it of arr){
         const ymd = String(it.locdate);
-        if (/^\d{8}$/.test(ymd)) {
-          const key = `${ymd.slice(0,4)}-${ymd.slice(4,6)}-${ymd.slice(6,8)}`;
-          map[key] = it.dateName || '';
+        if(/^\d{8}$/.test(ymd)){
+          const k = `${ymd.slice(0,4)}-${ymd.slice(4,6)}-${ymd.slice(6,8)}`;
+          map[k] = it.dateName || '';
         }
       }
       return map;
     }catch{ return {}; }
   }
-  async function loadHolidaysForYear(year){
-    if (!USE_HOLIDAYS) return {};
-    const cacheKey = holidayCacheKey(year);
-    const cached = localStorage.getItem(cacheKey);
-    if (cached){
-      try{ const obj = JSON.parse(cached); if (isCacheFresh(obj.ts)) return obj.data || {}; }catch{}
-    }
-    const all = {};
-    for (let m=0; m<12; m++) Object.assign(all, await fetchHolidaysByMonth(year, m));
-    localStorage.setItem(cacheKey, JSON.stringify({ data: all, ts: Date.now() }));
-    return all;
-  }
-
-  /* ========= 렌더 ========= */
   let holidayMap = {};
   let holidayYear = null;
 
+  /* ====== 캘린더 렌더 ====== */
   function drawCalendar(){
-    const y = state.year, m = state.month;
-    const first = new Date(y,m,1);
-    const lastDate = new Date(y,m+1,0).getDate();
-    const startDay = first.getDay();
-    const totalCells = Math.ceil((startDay + lastDate) / 7) * 7;
-
-    grid.innerHTML = '';
+    const y=state.year, m=state.month;
     monthTitle.textContent = `${y}. ${pad(m+1)}.`;
+    const first=new Date(y,m,1);
+    const lastDate=new Date(y,m+1,0).getDate();
+    const startDay=first.getDay();
+    const totalCells=Math.ceil((startDay+lastDate)/7)*7;
 
-    const today = new Date();
-    const store = getStore();
+    grid.innerHTML='';
+    const today=new Date();
+    const store=getStore();
 
     for(let i=0;i<totalCells;i++){
       const cell=document.createElement('div');
@@ -196,8 +170,7 @@
       const dayIndex=i-startDay+1;
 
       if(dayIndex<1||dayIndex>lastDate){
-        cell.classList.add('muted');
-        cell.innerHTML='&nbsp;';
+        cell.classList.add('muted'); cell.innerHTML='&nbsp;';
       }else{
         const dow=i%7;
         if(dow===0) cell.classList.add('sun');
@@ -209,9 +182,9 @@
         cell.appendChild(dateEl);
 
         const k=keyOf(y,m,dayIndex);
-        const value=store[k];
+        const val=store[k];
 
-        if (holidayMap && holidayMap[k]) {
+        if(holidayMap && holidayMap[k]){
           const badge=document.createElement('div');
           badge.className='holiday-badge';
           badge.textContent=holidayMap[k];
@@ -219,14 +192,14 @@
           cell.classList.add('sun');
         }
 
-        if(value){
+        if(val){
           const t=document.createElement('div');
           t.className='time';
-          t.textContent=value;
-          if (value==='7시'||value==='8시') t.classList.add('sevenEight');
-          else if (value==='12시') t.classList.add('noon');
-          else if (value==='휴무') t.classList.add('off');
-          else if (['연차','병가','공가','출장','돌봄','사가독서'].includes(value)) t.classList.add('special');
+          t.textContent=val;
+          if (val==='7시'||val==='8시') t.classList.add('sevenEight');
+          else if (val==='12시') t.classList.add('noon');
+          else if (val==='휴무') t.classList.add('off');
+          else if (['연차','병가','공가','출장','돌봄','사가독서'].includes(val)) t.classList.add('special');
           cell.appendChild(t);
         }
 
@@ -234,43 +207,53 @@
           cell.classList.add('today');
         }
 
-        cell.addEventListener('click', ()=> openModal(k, value || ''));
+        cell.addEventListener('click', ()=> openModal(k, val || ''));
       }
       grid.appendChild(cell);
     }
   }
 
-  function render(){
-    drawCalendar();
-    const y = state.year;
-    if (holidayYear !== y){
-      holidayYear = y;
-      (async ()=>{
-        holidayMap = await loadHolidaysForYear(y);
-        if (state.year === y) drawCalendar();
-      })();
+  async function render(){
+    drawCalendar(); // 먼저 그림
+    // 공휴일(옵션)
+    if (USE_HOLIDAYS){
+      const y = state.year;
+      if (holidayYear !== y){
+        holidayYear = y;
+        const cacheKey = holidayCacheKey(y);
+        let cached = null;
+        try{ cached = JSON.parse(localStorage.getItem(cacheKey)||'null'); }catch{}
+        if (cached && isCacheFresh(cached.ts)){ holidayMap=cached.data||{}; drawCalendar(); }
+        else{
+          const all={};
+          for(let m=0;m<12;m++) Object.assign(all, await fetchHolidaysByMonth(y,m));
+          holidayMap = all;
+          localStorage.setItem(cacheKey, JSON.stringify({ data:all, ts:Date.now() }));
+          drawCalendar();
+        }
+      }
     }
   }
 
-  /* ========= 모달 ========= */
+  /* ====== 모달(로컬 전용) ====== */
   function openModal(key, value){
-    selectedKey = key;
-    modalDate.textContent = key + ' 출근/상태';
+    selectedKey=key;
+    modalDate.textContent = key+' 출근/상태';
     timeSelect.value = value || '';
-    modal.style.display = 'flex';
+    modal.style.display='flex';
   }
-  function closeModal(){ modal.style.display = 'none'; }
+  function closeModal(){ modal.style.display='none'; }
   saveBtn.addEventListener('click', ()=>{
     if(!selectedKey) return;
-    const store = getStore();
-    store[selectedKey] = timeSelect.value || '';
+    const store=getStore();
+    store[selectedKey]=timeSelect.value||'';
     setStore(store);
     closeModal();
     drawCalendar();
   });
   clearBtn.addEventListener('click', ()=>{
     if(!selectedKey) return;
-    const store = getStore();
+    const store=getStore();
     delete store[selectedKey];
     setStore(store);
     closeModal();
@@ -279,149 +262,31 @@
   cancelBtn.addEventListener('click', closeModal);
   modal.addEventListener('click', (e)=>{ if(e.target===modal) closeModal(); });
 
-  /* ========= 월 네비 ========= */
-  prevBtn.addEventListener('click', ()=>{
-    state.month--;
-    if(state.month < 0){ state.month = 11; state.year--; }
-    render();
-  });
-  nextBtn.addEventListener('click', ()=>{
-    state.month++;
-    if(state.month > 11){ state.month = 0; state.year++; }
-    render();
-  });
+  /* ====== 월 이동 ====== */
+  prevBtn.addEventListener('click', ()=>{ state.month--; if(state.month<0){state.month=11; state.year--; } render(); });
+  nextBtn.addEventListener('click', ()=>{ state.month++; if(state.month>11){state.month=0; state.year++; } render(); });
 
-  /* ========= 엑셀 업/다운 ========= */
-  const ALLOWED_VALUES = ['7시','8시','12시','휴무','연차','병가','공가','출장','돌봄','사가독서'];
-  function isWorkTimeValue(v){ return ALLOWED_VALUES.includes(String(v).trim()); }
-  function normalizeHeader(h){ return String(h||'').toLowerCase().replace(/\s+/g,'').replace(/[^\w가-힣]/g,''); }
-  function pad2(n){ return n.toString().padStart(2,'0'); }
-  function toKeyFromExcelDate(v){
-    if (v == null || v === '') return null;
-    if (typeof v === 'number') {
-      const d = XLSX.SSF.parse_date_code(v);
-      if (!d || !d.y || !d.m || !d.d) return null;
-      return `${d.y}-${pad2(d.m)}-${pad2(d.d)}`;
-    }
-    let s = String(v).trim().replace(/[./]/g,'-').replace(/\s+/g,'');
-    const m1 = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-    if (m1) return `${m1[1]}-${pad2(+m1[2])}-${pad2(+m1[3])}`;
-    const dt = new Date(s);
-    if (!isNaN(dt)) return `${dt.getFullYear()}-${pad2(dt.getMonth()+1)}-${pad2(dt.getDate())}`;
-    return null;
-  }
-
-  importBtn.addEventListener('click', ()=> fileInput.click());
-  fileInput.addEventListener('change', async (e)=>{
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    try {
-      const ext = (file.name.split('.').pop() || '').toLowerCase();
-      let rows = [];
-      if (ext === 'csv') {
-        const text = await file.text();
-        rows = text.split(/\r?\n/).map(r => r.split(','));
-      } else {
-        const data = await file.arrayBuffer();
-        const wb = XLSX.read(data, { type:'array' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        rows = XLSX.utils.sheet_to_json(ws, { header:1, raw:true });
-      }
-      if (!rows.length) { alert('엑셀/CSV에서 데이터를 찾지 못했습니다.'); return; }
-
-      const header = rows[0] || [];
-      const nh = header.map(normalizeHeader);
-      let idxDate = nh.findIndex(x => ['날짜','일자','date'].includes(x));
-      let idxTime = nh.findIndex(x => ['출근시간','출근','근무','time','근무시간','상태'].includes(x));
-      let startRow = 1;
-      if (idxDate === -1 && idxTime === -1) { idxDate = 0; idxTime = 2; startRow = 0; }
-      if (idxDate === -1 || idxTime === -1) {
-        alert('헤더를 찾지 못했습니다.\n헤더가 있다면 "날짜/일자/date", "출근시간/근무/time/상태" 중 하나로 작성해 주세요.\n헤더가 없다면 A열=날짜, C열=출근시간(상태)로 배치해 주세요.');
-        return;
-      }
-
-      const store = getStore();
-      let applied = 0, skipped = 0;
-      for (let r = startRow; r < rows.length; r++){
-        const row = rows[r]; if (!row || row.length === 0) continue;
-        const key = toKeyFromExcelDate(row[idxDate]); if (!key) { skipped++; continue; }
-        const rawTime = (row[idxTime] ?? '').toString().trim();
-        if (!isWorkTimeValue(rawTime)) { skipped++; continue; }
-        store[key] = rawTime; applied++;
-      }
-      setStore(store); // <- 여기서 자동 클라우드 저장(아래 래퍼가 붙음)
-      drawCalendar();
-      alert(`불러오기 완료\n적용: ${applied}건, 건너뜀: ${skipped}건`);
-    } catch(err){
-      console.error(err);
-      alert('엑셀 불러오기에 실패했습니다. 파일 형식과 내용(헤더/열 위치)을 확인해 주세요.');
-    } finally { fileInput.value = ''; }
-  });
-
-  const WEEKDAY_KO = ['일','월','화','수','목','금','토'];
-  excelExportBtn.addEventListener('click', ()=>{
-    const y = state.year, m = state.month;
-    const lastDate = new Date(y, m+1, 0).getDate();
-    const store = getStore();
-    const rows = [['날짜','요일','출근/상태']];
-    for (let d=1; d<=lastDate; d++){
-      const k = keyOf(y, m, d);
-      const yoil = WEEKDAY_KO[new Date(y, m, d).getDay()];
-      rows.push([k, yoil, store[k] || '']);
-    }
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, `${y}-${pad(m+1)}`);
-    XLSX.writeFile(wb, `workTimes_${y}-${pad(m+1)}.xlsx`);
-  });
-
-  /* ========= 시작 ========= */
-  render();
-
-  /* 🔽 스프레드시트(Web App) 동기화 모듈 */
-  const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbz-dIG629wx8beMrDRo9gSz6mFANqISIru6NOE5GpZRr7kayMET9mQkwOk53AxaPdwm/exec'; // e.g. https://script.google.com/macros/s/XXXX/exec
-  let _cloudTimer = null;
-
-  function cloudSaveDebounced(data){
-    clearTimeout(_cloudTimer);
-    _cloudTimer = setTimeout(()=>cloudSave(data), 600);
-  }
-  async function cloudSave(data){
-    try{
-      const payload = new URLSearchParams();
-      payload.set('payload', JSON.stringify({ data }));
-      await fetch(WEBAPP_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-        body: payload.toString()
-      });
-      // 조용히 성공
-    }catch(e){
-      console.warn('cloudSave error', e);
-    }
-  }
-  async function cloudLoad(){
+  /* ====== Google 시트 불러오기 ====== */
+  async function loadFromSheet(){
     try{
       const res = await fetch(WEBAPP_URL + '?_=' + Date.now());
       const j = await res.json();
-      if (j && j.ok && j.data) {
-        localStorage.setItem(storeKey, JSON.stringify(j.data));
-        drawCalendar();
-      }
+      if (!j || !j.ok) { alert('시트 불러오기 실패: ' + (j && j.error ? j.error : '응답 오류')); return; }
+      // 서버 데이터 → 로컬 저장소에 그대로 덮어쓰기
+      localStorage.setItem(storeKey, JSON.stringify(j.data || {}));
+      drawCalendar();
+      alert('시트에서 불러왔습니다.');
     }catch(e){
-      console.warn('cloudLoad error (첫 실행이거나 오프라인일 수 있음)', e);
+      alert('시트 불러오기 실패: ' + e.message);
+      console.error(e);
     }
   }
-  // setStore 래핑: 로컬 저장 후 서버에도 자동 저장
-  (function wrapSetStore(){
-    const __orig = setStore;
-    window.setStore = function(data){
-      __orig(data);
-      cloudSaveDebounced(data);
-    };
-  })();
-  // 시작 시 원격 → 로컬 1회 동기화
-  cloudLoad();
+  sheetLoadBtn.addEventListener('click', loadFromSheet);
+
+  /* ====== 시작 ====== */
+  render();
+  // 첫 로딩 시 자동 1회 불러오기
+  loadFromSheet().catch(()=>{ /* 네트워크 문제 등은 조용히 무시 */ });
 </script>
 </body>
 </html>
