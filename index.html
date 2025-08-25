@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>출근 월간 캘린더 (Google Sheets 불러오기)</title>
+<title>출근 월간 캘린더 (Google Sheets 읽기 전용)</title>
 <style>
   :root{ --primary:#16a34a; --red:#e11d48; --blue:#2563eb; --text:#222;
          --sub:#6b7280; --border:#e5e7eb; --bg:#f8fafc; --card:#fff; }
@@ -38,8 +38,6 @@
   .time.off{ background:#d1fae5; color:#16a34a; }   /* 휴무: 연두 */
   .time.special{ background:#000; color:#fff; }     /* 연차/병가/공가/출장/돌봄/사가독서: 검정 */
 
-  #apiStatus{ display:none !important; }
-
   #modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;align-items:flex-end}
   .sheet{width:100%;max-width:740px;margin:0 auto;background:#fff;border-top-left-radius:16px;border-top-right-radius:16px;padding:16px;box-shadow:0 -6px 20px rgba(0,0,0,.15)}
   .sheet h3{margin:0 0 10px 0;font-size:16px}
@@ -55,7 +53,7 @@
     <div class="card">
       <div class="topbar">
         <button class="navbtn" id="prevBtn" aria-label="이전 달">◀</button>
-        <div class="title"><span id="monthTitle">YYYY. MM.</span><span id="apiStatus"></span></div>
+        <div class="title"><span id="monthTitle">YYYY. MM.</span></div>
         <div class="actions">
           <button class="mini" id="sheetLoadBtn">시트 불러오기</button>
           <button class="navbtn" id="nextBtn" aria-label="다음 달">▶</button>
@@ -68,7 +66,7 @@
     </div>
   </div>
 
-  <!-- 수동 입력 모달(로컬 전용) -->
+  <!-- (선택) 로컬 편집 모달 -->
   <div id="modal" aria-modal="true" role="dialog">
     <div class="sheet">
       <h3 id="modalDate">YYYY-MM-DD 출근/상태</h3>
@@ -91,7 +89,7 @@
         <button id="cancelBtn">취소</button>
       </div>
       <p style="margin:8px 0 0;color:#6b7280;font-size:12px">
-        * “시트 불러오기”를 하면 구글시트 내용으로 다시 덮어씁니다.
+        * “시트 불러오기” 시 구글시트 내용으로 다시 덮어쓰기 됩니다.
       </p>
     </div>
   </div>
@@ -99,9 +97,6 @@
 <script>
   /* ====== 환경설정 ====== */
   const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyN6nGz0ADfaANM9lRtxZfwSZMpcmyafCxTQ4WehRr6rVai7ROr5AasMWDPiDYj1J7D/exec'; // 예: https://script.google.com/macros/s/XXXX/exec
-  const SERVICE_KEY = ""; // (옵션) 공휴일 API 키가 있으면 넣으세요
-  const USE_HOLIDAYS = !!SERVICE_KEY;
-  const HOLIDAY_TTL_DAYS = 7;
 
   /* ====== 엘리먼트 ====== */
   const grid = document.getElementById('grid');
@@ -124,32 +119,6 @@
   function setStore(data){ localStorage.setItem(storeKey, JSON.stringify(data)); }
   function pad(n){ return n.toString().padStart(2,'0'); }
   function keyOf(y,m,d){ return `${y}-${pad(m+1)}-${pad(d)}`; }
-
-  /* ====== (옵션) 공휴일 ====== */
-  function holidayCacheKey(year){ return `holidays_${year}_v3`; }
-  function isCacheFresh(ts){ return ts && (Date.now()-ts) <= HOLIDAY_TTL_DAYS*86400000; }
-  async function fetchHolidaysByMonth(year, month){
-    try{
-      const solMonth = pad(month+1);
-      const url = `https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo?solYear=${year}&solMonth=${solMonth}&numOfRows=100&_type=json&ServiceKey=${encodeURIComponent(SERVICE_KEY)}`;
-      const res = await fetch(url);
-      if(!res.ok) throw new Error(res.status);
-      const data = await res.json();
-      const items = (((data||{}).response||{}).body||{}).items;
-      const arr = items && items.item ? (Array.isArray(items.item)?items.item:[items.item]) : [];
-      const map = {};
-      for(const it of arr){
-        const ymd = String(it.locdate);
-        if(/^\d{8}$/.test(ymd)){
-          const k = `${ymd.slice(0,4)}-${ymd.slice(4,6)}-${ymd.slice(6,8)}`;
-          map[k] = it.dateName || '';
-        }
-      }
-      return map;
-    }catch{ return {}; }
-  }
-  let holidayMap = {};
-  let holidayYear = null;
 
   /* ====== 캘린더 렌더 ====== */
   function drawCalendar(){
@@ -184,14 +153,6 @@
         const k=keyOf(y,m,dayIndex);
         const val=store[k];
 
-        if(holidayMap && holidayMap[k]){
-          const badge=document.createElement('div');
-          badge.className='holiday-badge';
-          badge.textContent=holidayMap[k];
-          cell.appendChild(badge);
-          cell.classList.add('sun');
-        }
-
         if(val){
           const t=document.createElement('div');
           t.className='time';
@@ -213,29 +174,6 @@
     }
   }
 
-  async function render(){
-    drawCalendar(); // 먼저 그림
-    // 공휴일(옵션)
-    if (USE_HOLIDAYS){
-      const y = state.year;
-      if (holidayYear !== y){
-        holidayYear = y;
-        const cacheKey = holidayCacheKey(y);
-        let cached = null;
-        try{ cached = JSON.parse(localStorage.getItem(cacheKey)||'null'); }catch{}
-        if (cached && isCacheFresh(cached.ts)){ holidayMap=cached.data||{}; drawCalendar(); }
-        else{
-          const all={};
-          for(let m=0;m<12;m++) Object.assign(all, await fetchHolidaysByMonth(y,m));
-          holidayMap = all;
-          localStorage.setItem(cacheKey, JSON.stringify({ data:all, ts:Date.now() }));
-          drawCalendar();
-        }
-      }
-    }
-  }
-
-  /* ====== 모달(로컬 전용) ====== */
   function openModal(key, value){
     selectedKey=key;
     modalDate.textContent = key+' 출근/상태';
@@ -263,17 +201,16 @@
   modal.addEventListener('click', (e)=>{ if(e.target===modal) closeModal(); });
 
   /* ====== 월 이동 ====== */
-  prevBtn.addEventListener('click', ()=>{ state.month--; if(state.month<0){state.month=11; state.year--; } render(); });
-  nextBtn.addEventListener('click', ()=>{ state.month++; if(state.month>11){state.month=0; state.year++; } render(); });
+  prevBtn.addEventListener('click', ()=>{ state.month--; if(state.month<0){state.month=11; state.year--; } drawCalendar(); });
+  nextBtn.addEventListener('click', ()=>{ state.month++; if(state.month>11){state.month=0; state.year++; } drawCalendar(); });
 
-  /* ====== Google 시트 불러오기 ====== */
+  /* ====== 시트 불러오기 ====== */
   async function loadFromSheet(){
     try{
       const res = await fetch(WEBAPP_URL + '?_=' + Date.now());
       const j = await res.json();
       if (!j || !j.ok) { alert('시트 불러오기 실패: ' + (j && j.error ? j.error : '응답 오류')); return; }
-      // 서버 데이터 → 로컬 저장소에 그대로 덮어쓰기
-      localStorage.setItem(storeKey, JSON.stringify(j.data || {}));
+      localStorage.setItem(storeKey, JSON.stringify(j.data || {})); // 덮어쓰기
       drawCalendar();
       alert('시트에서 불러왔습니다.');
     }catch(e){
@@ -284,9 +221,9 @@
   sheetLoadBtn.addEventListener('click', loadFromSheet);
 
   /* ====== 시작 ====== */
-  render();
-  // 첫 로딩 시 자동 1회 불러오기
-  loadFromSheet().catch(()=>{ /* 네트워크 문제 등은 조용히 무시 */ });
+  drawCalendar();
+  // 첫 로딩 시 자동 1회 불러오기 (실패해도 캘린더는 뜸)
+  loadFromSheet().catch(()=>{});
 </script>
 </body>
 </html>
