@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>출근 월간 캘린더 (시트 연동 + 공휴일)</title>
+<title>출근 월간 캘린더 (시트 연동 + 공휴일, 빠른버전)</title>
 <style>
   :root{ --primary:#16a34a; --red:#e11d48; --blue:#2563eb; --text:#222; --sub:#6b7280; --border:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   *{box-sizing:border-box}
@@ -15,12 +15,8 @@
   .title{font-weight:700;font-size:20px;display:flex;align-items:center;gap:8px}
   .actions{display:flex;gap:8px}
 
-  /* 버튼 스타일 (예전 디자인) */
-  button{
-    height:40px;border-radius:10px;
-    border:1px solid var(--border);background:#fff;
-    padding:0 14px;font-weight:600;cursor:pointer;
-  }
+  /* 버튼 (예전 디자인) */
+  button{height:40px;border-radius:10px;border:1px solid var(--border);background:#fff;padding:0 14px;font-weight:600;cursor:pointer}
   .primary{background:var(--primary);border-color:var(--primary);color:#fff}
   .danger{background:#fff;border-color:#ef4444;color:#ef4444}
   .mini{height:36px;padding:0 12px;border-radius:9px;border:1px solid var(--border);background:#fff;font-weight:600;font-size:13px;cursor:pointer}
@@ -41,10 +37,10 @@
   .holiday-badge{ position:absolute;left:6px;top:24px;font-size:10px;color:var(--red);font-weight:700;white-space:nowrap }
 
   .time{ position:absolute;bottom:0;left:0;width:100%;height:22px;line-height:22px;text-align:center;font-size:12px;font-weight:600;border-radius:0; }
-  .time.sevenEight{ background:#d1d5db; color:#000; }
-  .time.noon{ background:orange; color:#000; }
-  .time.off{ background:#d1fae5; color:#16a34a; }
-  .time.special{ background:#000; color:#fff; }
+  .time.sevenEight{ background:#d1d5db; color:#000; } /* 7/8시 */
+  .time.noon{ background:orange; color:#000; }       /* 12시 */
+  .time.off{ background:#d1fae5; color:#16a34a; }   /* 휴무 */
+  .time.special{ background:#000; color:#fff; }     /* 연차/병가/공가/출장/돌봄/사가독서 */
 
   /* 모달 */
   #modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;align-items:flex-end}
@@ -65,7 +61,7 @@
         <button class="navbtn" id="prevBtn" aria-label="이전 달">◀</button>
         <div class="title"><span id="monthTitle">YYYY. MM.</span></div>
         <div class="actions">
-          <button class="mini" id="sheetLoadBtn">불러오기</button>
+          <button class="mini" id="sheetLoadBtn">시트 불러오기</button>
           <button class="navbtn" id="nextBtn" aria-label="다음 달">▶</button>
         </div>
       </div>
@@ -103,8 +99,8 @@
 
 <script>
   /* ========= 설정 ========= */
-  const WEBAPP_URL  = 'https://script.google.com/macros/s/AKfycbyXDEHfNN2Df1pIkOQh23NlGf605K-KWvedZrzzppv9T4PD2ydG21Tg7z2J0ByyGe-s/exec'; // e.g. https://script.google.com/macros/s/XXX/exec
-  const SERVICE_KEY = 'f3fe3ff25a8fe96c692eacced03e726ebf3443ee7cdd8e50a1d06a1b0d7ee8cf'; // 공휴일 API 키 넣으면 공휴일 표시
+  const WEBAPP_URL  = 'https://script.google.com/macros/s/AKfycbxjI7NMPw7Tl__tVwaPdCfdR8sESMeByoP6U_YPgVP7fNjmrcWDeCtsdzR7mjL2zBDI/exec'; // e.g. https://script.google.com/macros/s/XXX/exec
+  const SERVICE_KEY = 'f3fe3ff25a8fe96c692eacced03e726ebf3443ee7cdd8e50a1d06a1b0d7ee8cf'; // 공휴일 API 키 (있으면 입력, 없으면 공휴일 비활성)
   const USE_HOLIDAYS = SERVICE_KEY && SERVICE_KEY.trim().length > 0;
   const SERVICE_KEY_PARAM = (SERVICE_KEY||'').includes('%') ? SERVICE_KEY : encodeURIComponent(SERVICE_KEY);
   const HOLIDAY_TTL_DAYS = 7;
@@ -128,9 +124,10 @@
   const pad=n=>n.toString().padStart(2,'0');
   const keyOf=(y,m,d)=>`${y}-${pad(m+1)}-${pad(d)}`;
 
-  /* ========= 공휴일 ========= */
-  function holidayCacheKey(year){return `holidays_${year}_v6`;}
-  function isCacheFresh(ts){return ts&&(Date.now()-ts)<=HOLIDAY_TTL_DAYS*86400000;}
+  /* ========= 공휴일 (월 단위 캐시/호출) ========= */
+  function holidayCacheKey(year, month){ return `holidays_${year}-${pad(month+1)}_v1`; }
+  function isCacheFresh(ts){ return ts && (Date.now() - ts) <= HOLIDAY_TTL_DAYS*86400000; }
+
   async function fetchHolidaysByMonth(year,month){
     if(!USE_HOLIDAYS) return {};
     try{
@@ -153,24 +150,32 @@
       return m;
     }catch(e){return {};}
   }
-  let holidayMap={};let holidayYear=null;
-  async function ensureHolidayForYear(year){
-    if(!USE_HOLIDAYS){holidayMap={};holidayYear=year;return;}
-    const key=holidayCacheKey(year);
-    const cached=localStorage.getItem(key);
-    if(cached){
-      try{const obj=JSON.parse(cached);
-        if(isCacheFresh(obj.ts)){holidayMap=obj.data||{};holidayYear=year;return;}
+
+  let holidayMap={}; let holidayYear=null; let holidayMonth=null;
+
+  async function ensureHolidayForMonth(year, month){
+    if(!USE_HOLIDAYS){ holidayMap={}; holidayYear=year; holidayMonth=month; return; }
+    const k = holidayCacheKey(year, month);
+    const cached = localStorage.getItem(k);
+    if (cached){
+      try{
+        const obj = JSON.parse(cached);
+        if (obj && isCacheFresh(obj.ts)){
+          holidayMap = obj.data || {};
+          holidayYear = year; holidayMonth = month;
+          return;
+        }
       }catch{}
     }
-    const all={};for(let m=0;m<12;m++)Object.assign(all,await fetchHolidaysByMonth(year,m));
-    localStorage.setItem(key,JSON.stringify({data:all,ts:Date.now()}));
-    holidayMap=all;holidayYear=year;
+    const data = await fetchHolidaysByMonth(year, month);
+    localStorage.setItem(k, JSON.stringify({ data, ts: Date.now() }));
+    holidayMap = data;
+    holidayYear = year; holidayMonth = month;
   }
 
   /* ========= 시트 연동 ========= */
   async function reloadFromSheet(){
-    const res=await fetch(WEBAPP_URL+'?_'+Date.now());
+    const res=await fetch(WEBAPP_URL+'?_='+Date.now());
     const j=await res.json();
     if(!j||!j.ok) throw new Error(j&&j.error?j.error:('HTTP '+res.status));
     sheetData=j.data||{};
@@ -207,33 +212,66 @@
         const dow=i%7;if(dow===0)cell.classList.add('sun');if(dow===6)cell.classList.add('sat');
         const dateEl=document.createElement('div');dateEl.className='date';dateEl.textContent=dayIndex;cell.appendChild(dateEl);
         const k=keyOf(y,m,dayIndex);const val=sheetData[k];
-        if(holidayMap&&holidayMap[k]){const b=document.createElement('div');b.className='holiday-badge';b.textContent=holidayMap[k];cell.appendChild(b);cell.classList.add('sun');}
-        if(val){const t=document.createElement('div');t.className='time';t.textContent=val;
+
+        // 공휴일 배지(월 단위 map)
+        if(holidayMap && holidayMap[k]){
+          const b=document.createElement('div');b.className='holiday-badge';b.textContent=holidayMap[k];cell.appendChild(b);cell.classList.add('sun');
+        }
+
+        if(val){
+          const t=document.createElement('div');t.className='time';t.textContent=val;
           if(val==='7시'||val==='8시')t.classList.add('sevenEight');
           else if(val==='12시')t.classList.add('noon');
           else if(val==='휴무')t.classList.add('off');
           else if(['연차','병가','공가','출장','돌봄','사가독서'].includes(val))t.classList.add('special');
-          cell.appendChild(t);}
+          cell.appendChild(t);
+        }
+
         if(today.getFullYear()===y&&today.getMonth()===m&&today.getDate()===dayIndex){cell.classList.add('today');}
         cell.addEventListener('click',()=>openModal(k,val||''));
       }
       grid.appendChild(cell);
     }
   }
+
   function render(){
     drawCalendar();
-    const y=state.year;
-    if(holidayYear!==y){(async()=>{await ensureHolidayForYear(y);if(state.year===y)drawCalendar();})();}}
-  
+    const y=state.year, m=state.month;
+    if(holidayYear!==y || holidayMonth!==m){
+      (async()=>{ await ensureHolidayForMonth(y,m); if(state.year===y && state.month===m) drawCalendar(); })();
+    }
+  }
+
   /* ========= 모달 ========= */
   function openModal(key,value){selectedKey=key;modalDate.textContent=key+' 출근/상태';timeSelect.value=value||'';modal.style.display='flex';}
   function closeModal(){modal.style.display='none';}
 
-  saveBtn.addEventListener('click',async()=>{if(!selectedKey)return;try{await saveToSheet(selectedKey,timeSelect.value||'');await reloadFromSheet();drawCalendar();closeModal();}catch(e){alert('저장 실패:'+e.message);}});
-  clearBtn.addEventListener('click',async()=>{if(!selectedKey)return;try{await deleteFromSheet(selectedKey);await reloadFromSheet();drawCalendar();closeModal();}catch(e){alert('삭제 실패:'+e.message);}});
+  // ✅ 낙관적 업데이트: 저장/삭제 후 재다운로드 없이 즉시 반영
+  saveBtn.addEventListener('click',async()=>{
+    if(!selectedKey) return;
+    try{
+      const v = timeSelect.value || '';
+      await saveToSheet(selectedKey, v);
+      sheetData[selectedKey] = v;     // 즉시 반영
+      drawCalendar();
+      closeModal();
+    }catch(e){ alert('저장 실패: '+e.message); }
+  });
+
+  clearBtn.addEventListener('click',async()=>{
+    if(!selectedKey) return;
+    try{
+      await deleteFromSheet(selectedKey);
+      delete sheetData[selectedKey];  // 즉시 반영
+      drawCalendar();
+      closeModal();
+    }catch(e){ alert('삭제 실패: '+e.message); }
+  });
+
   cancelBtn.addEventListener('click',closeModal);
   modal.addEventListener('click',e=>{if(e.target===modal)closeModal();});
 
+  /* ========= 월 네비 ========= */
   prevBtn.addEventListener('click',()=>{state.month--;if(state.month<0){state.month=11;state.year--;}render();});
   nextBtn.addEventListener('click',()=>{state.month++;if(state.month>11){state.month=0;state.year++;}render();});
   sheetLoadBtn.addEventListener('click',async()=>{try{await reloadFromSheet();drawCalendar();alert('시트에서 불러왔습니다.');}catch(e){alert('불러오기 실패:'+e.message);}});
