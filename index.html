@@ -65,7 +65,7 @@
         <button class="navbtn" id="prevBtn" aria-label="이전 달">◀</button>
         <div class="title"><span id="monthTitle">YYYY. MM.</span></div>
         <div class="actions">
-          <button class="mini" id="sheetLoadBtn">시트 불러오기</button>
+          <button class="mini" id="sheetLoadBtn">불러오기</button>
           <button class="navbtn" id="nextBtn" aria-label="다음 달">▶</button>
         </div>
       </div>
@@ -103,7 +103,7 @@
 
 <script>
   /* ========= 설정 ========= */
-  const WEBAPP_URL  = 'https://script.google.com/macros/s/AKfycby4T2BdDfJE8pCknwoJB-txbQ3X5grl4pW260isR3bcicrl8C8rrZ1FPqPchwNKHhHk/exec'; // e.g. https://script.google.com/macros/s/XXX/exec
+  const WEBAPP_URL  = 'https://script.google.com/macros/s/AKfycbwio1yMlHqCTWUJm3j3r3lJvItn3VjoJ1A4ejVWTPGS21hRmhO3lPnRIi_5nochMMr1/exec'; // e.g. https://script.google.com/macros/s/XXX/exec
   const SERVICE_KEY = 'f3fe3ff25a8fe96c692eacced03e726ebf3443ee7cdd8e50a1d06a1b0d7ee8cf'; // 공휴일 API 키 넣으면 공휴일 표시
   const USE_HOLIDAYS = SERVICE_KEY && SERVICE_KEY.trim().length > 0;
   const SERVICE_KEY_PARAM = (SERVICE_KEY||'').includes('%') ? SERVICE_KEY : encodeURIComponent(SERVICE_KEY);
