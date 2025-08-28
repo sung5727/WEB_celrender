@@ -21,7 +21,7 @@
   .danger{background:#ef4444;border-color:#ef4444;color:#fff}
   .mini{height:36px;padding:0 12px;border-radius:9px;border:1px solid var(--border);background:#fff;font-weight:600;font-size:13px;cursor:pointer}
   .navbtn{width:36px;height:36px;border-radius:999px;border:1px solid var(--border);background:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;cursor:pointer}
-  .cancel{appearance:none; background:#000; border-color:#000; color: #fff}
+
 
   .weekday{display:grid;grid-template-columns:repeat(7,1fr);background:#f3f4f6;border-bottom:1px solid var(--border)}
   .weekday div{padding:10px 0;text-align:center;font-weight:600;color:var(--sub)}
@@ -45,7 +45,7 @@
   .time.noon{ background:#FFCA9B; color:#000; }       /* 12시 */
   .time.off{ background:#d1fae5; color:#16a34a; }   /* 휴무 */
   .time.special{ background:#3c3c3c	; color:#fff; }     /* 연차/병가/공가/출장/돌봄/사가독서 */
-  .time.special-big{font-size:12px;}
+  /*.time.special-big{font-size:12px;}*/
 
   /* 모달 */
   #modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;align-items:flex-end}
@@ -230,7 +230,7 @@
           else if(val==='12시')t.classList.add('noon');
           else if(val==='휴무')t.classList.add('off');
           else if(['연차','병가','공가','출장','돌봄','사가독서','체련대회'].includes(val))t.classList.add('special');
-               if(val == '사가독서' || val == '체련대회') {t.classList.add(;special-big');}
+              /* if(val == '사가독서' || val == '체련대회') {t.classList.add(;special-big');} */
           cell.appendChild(t);
         }
 
