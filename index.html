@@ -45,6 +45,8 @@
   .time.noon{ background:#FFCA9B; color:#000; }       /* 12시 */
   .time.off{ background:#d1fae5; color:#16a34a; }   /* 휴무 */
   .time.special{ background:#3c3c3c	; color:#fff; }     /* 연차/병가/공가/출장/돌봄/사가독서 */
+  .time.special_small{ font-size:11px; }
+  
 
   /* 모달 */
   #modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;align-items:flex-end}
@@ -95,9 +97,9 @@
         <option value="체련대회">체련대회</option>
       </select>
       <div class="controls">
-        <button class="primary" id="saveBtn">저장</button>
-        <button class="danger" id="clearBtn">삭제</button>
-        <button calss id="cancelBtn">취소</button>
+        <button class="primary" id="saveBtn">  저장  </button>
+        <button class="danger" id="clearBtn">  삭제  </button>
+        <button calss id="cancelBtn">  취소  </button>
       </div>
     </div>
   </div>
@@ -122,10 +124,12 @@
   const clearBtn=document.getElementById('clearBtn');
   const cancelBtn=document.getElementById('cancelBtn');
 
-  let state=(()=>{const now=new Date();return{year:now.getFullYear(),month:now.getMonth()};})(); 
+  let state=(()=>{const now=new Date();return{year:now.getFullYear(),month:now.getMonth()};})();
+  
   let selectedKey=null;
   let sheetData={};
-    const pad=n=>n.toString().padStart(2,'0');
+  
+  const pad=n=>n.toString().padStart(2,'0');
   const keyOf=(y,m,d)=>`${y}-${pad(m+1)}-${pad(d)}`;
   
 
@@ -229,7 +233,10 @@
           if(val==='7시'||val==='8시')t.classList.add('sevenEight');
           else if(val==='12시')t.classList.add('noon');
           else if(val==='휴무')t.classList.add('off');
-          else if(['연차','병가','공가','출장','돌봄','사가독서','체련대회'].includes(val)) t.classList.add('special');
+          else if(['연차','병가','공가','출장','돌봄'].includes(val)) t.classList.add('special');
+          else if(['사가독서','체련대회'].includes(val)) t.classList.add('special_small');
+          
+          
           cell.appendChild(t);
         }
 
