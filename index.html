@@ -21,6 +21,7 @@
   .danger{background:#ef4444;border-color:#ef4444;color:#fff}
   .mini{height:36px;padding:0 12px;border-radius:9px;border:1px solid var(--border);background:#fff;font-weight:600;font-size:13px;cursor:pointer}
   .navbtn{width:36px;height:36px;border-radius:999px;border:1px solid var(--border);background:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;cursor:pointer}
+  .cancel{background:#000; border-color:#000; color: #fff}
 
   .weekday{display:grid;grid-template-columns:repeat(7,1fr);background:#f3f4f6;border-bottom:1px solid var(--border)}
   .weekday div{padding:10px 0;text-align:center;font-weight:600;color:var(--sub)}
@@ -32,7 +33,7 @@
   .date{font-weight:700}
   .sun{color:var(--red)} .sat{color:var(--blue)}
   .muted{color:#c7cdd7}
-  .today .date{display: flex; align-items: center; justify-content: center; width: 40px; height: 20px; border-radius: 6px; background: #000; color: #fff; }
+  .today .date{display: flex; align-items: center; justify-content: center; width: 22px; height: 20px; border-radius: 6px; background: #000; color: #fff; }
   
   /*inline-block; width: 28px; height: 28px; line-height: 28px; text-aligh: center; border-radius: 6px; background: #000; color: #fff; font-weight: 700; }*/
   /*{outline:2px solid #9ca3af; outline-offset:-2px; border-radius:8px;} */
@@ -41,7 +42,7 @@
 
   .time{ position:absolute;bottom:0;left:0;width:100%;height:22px;line-height:22px;text-align:center;font-size:14px;font-weight:600;border-radius:0; }
   .time.sevenEight{ background:#d1d5db; color:#000; } /* 7/8시 */
-  .time.noon{ background:orange; color:#000; }       /* 12시 */
+  .time.noon{ background:##ffe0b2; color:#000; }       /* 12시 */
   .time.off{ background:#d1fae5; color:#16a34a; }   /* 휴무 */
   .time.special{ background:#000; color:#fff; }     /* 연차/병가/공가/출장/돌봄/사가독서 */
 
@@ -91,12 +92,12 @@
         <option value="출장">출장</option>
         <option value="돌봄">돌봄</option>
         <option value="사가독서">사가독서</option>
-        <option value="사가독서">체련대회</option>
+        <option value="체련대회">체련대회</option>
       </select>
       <div class="controls">
         <button class="primary" id="saveBtn">저장</button>
         <button class="danger" id="clearBtn">삭제</button>
-        <button class="black" id="cancelBtn">취소</button>
+        <button calss="cancel" id="cancelBtn">취소</button>
       </div>
     </div>
   </div>
