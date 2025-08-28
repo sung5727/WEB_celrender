@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>출근 월간 캘린더 (시트 연동 + 공휴일, 빠른버전)</title>
+<title>출근캘린더(2025-08-28 제작)</title>
 <style>
   :root{ --primary:#16a34a; --red:#e11d48; --blue:#2563eb; --text:#222; --sub:#6b7280; --border:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   *{box-sizing:border-box}
@@ -122,29 +122,40 @@
   const clearBtn=document.getElementById('clearBtn');
   const cancelBtn=document.getElementById('cancelBtn');
 
-  /*let state=(()=>{const now=new Date();return{year:now.getFullYear(),month:now.getMonth()};})();*/
- /*마지막달 기억해서 실행할때 호출 그 값을 기억하기 위해 숫자로 기억*/
- function render(){
-  const y = state.year, m = state.month;
-  monthTitle.textContent = `${y}. ${pad(m+1)}.`;
+  /*let state=(()=>{const now=new Date();return{year:now.getFullYear(),month:now.getMonth()};})(); 
+  let selectedKey=null;
+  let sheetData={};*/
 
-  // ... 기존 drawCalendar 호출 코드들 ...
-
-  // 마지막 본 위치 저장
+  function loadLastState(){
+  try{
+    const s = localStorage.getItem('lastState');
+    if(!s) return null;
+    const obj = JSON.parse(s);
+    if (typeof obj.year==='number' && typeof obj.month==='number' &&
+        obj.month>=0 && obj.month<=11) return obj;
+  }catch(e){}
+  return null;
+}
+function saveLastState(){
   localStorage.setItem('lastState', JSON.stringify(state));
 }
 
-  
-  let state = (()=>{ 
-  const saved = localStorage.getItem('lastState');
-  if (saved) {
-    try { return JSON.parse(saved); } catch(e) {}
-  }
+let state = (()=>{ 
+  const saved = loadLastState();
+  if (saved) return saved;
   const now = new Date();
   return { year: now.getFullYear(), month: now.getMonth() };
 })();
-  let selectedKey=null;
-  let sheetData={};
+
+function render(){
+  const y = state.year, m = state.month;
+  monthTitle.textContent = `${y}. ${pad(m+1)}.`;
+
+  // ... 기존 캘린더 렌더링 코드 ...
+
+  saveLastState(); // ✅ 마지막에 위치
+}
+  
 
   
   const pad=n=>n.toString().padStart(2,'0');
