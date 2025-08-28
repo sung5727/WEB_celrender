@@ -22,6 +22,7 @@
   .mini{height:36px;padding:0 12px;border-radius:9px;border:1px solid var(--border);background:#fff;font-weight:600;font-size:13px;cursor:pointer}
   .navbtn{width:36px;height:36px;border-radius:999px;border:1px solid var(--border);background:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;cursor:pointer}
 
+
   .weekday{display:grid;grid-template-columns:repeat(7,1fr);background:#f3f4f6;border-bottom:1px solid var(--border)}
   .weekday div{padding:10px 0;text-align:center;font-weight:600;color:var(--sub)}
   .weekday div:first-child{color:var(--red)}
@@ -33,6 +34,7 @@
   .sun{color:var(--red)} .sat{color:var(--blue)}
   .muted{color:#c7cdd7}
   .today .date{display: flex; align-items: center; justify-content: center; width: 33px; height: 20px; border-radius: 6px; background: #323232; color: #fff; }
+  
   /*inline-block; width: 28px; height: 28px; line-height: 28px; text-aligh: center; border-radius: 6px; background: #000; color: #fff; font-weight: 700; }*/
   /*{outline:2px solid #9ca3af; outline-offset:-2px; border-radius:8px;} */
 
@@ -42,30 +44,20 @@
   .time.sevenEight{ background:#d1d5db; color:#000; } /* 7/8시 */
   .time.noon{ background:#FFCA9B; color:#000; }       /* 12시 */
   .time.off{ background:#d1fae5; color:#16a34a; }   /* 휴무 */
-  .time.special{ background:#3c3c3c   ; color:#fff; }     /* 연차/병가/공가/출장/돌봄 */
-  .time.special_small{ font-size:12px; background:#3c3c3c   ; color:#fff; } /* 사가독서/체련대회 폰트크기 작게*/
+  .time.special{ background:#3c3c3c	; color:#fff; }     /* 연차/병가/공가/출장/돌봄 */
+  .time.special_small{ font-size:12px; background:#3c3c3c	; color:#fff; } /* 사가독서/체련대회 폰트크기 작게*/
+  
 
-  /* === ⛅ 추가: 날짜-시간 사이 날씨 영역 === */
-  .weather-icon{
-    position:absolute;
-    left:50%;
-    transform:translateX(-50%);
-    top:30px;           /* 날짜 아래 */
-    width:20px;
-    height:20px;
-    pointer-events:none;
+  /* 모달 */
+  #modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;align-items:flex-end}
+  .sheet{
+    width:100%;max-width:740px;margin:0 auto;
+    background:#fff;border-top-left-radius:16px;border-top-right-radius:16px;
+    padding:16px;box-shadow:0 -6px 20px rgba(0,0,0,.15);
   }
-  .weather-temp{
-    position:absolute;
-    left:0; right:0;
-    top:48px;           /* 아이콘 아래 */
-    text-align:center;
-    font-size:10px;
-    line-height:12px;
-    color:#374151;
-    pointer-events:none;
-    white-space:nowrap;
-  }
+  .sheet h3{margin:0 0 10px 0;font-size:16px}
+  .controls{display:flex;gap:8px;margin-top:12px}
+  select{width:100%;height:44px;border:1px solid var(--border);border-radius:10px;padding:0 10px;font-size:16px;background:#fff}
 </style>
 </head>
 <body>
@@ -133,11 +125,14 @@
   const cancelBtn=document.getElementById('cancelBtn');
 
   let state=(()=>{const now=new Date();return{year:now.getFullYear(),month:now.getMonth()};})();
+  
   let selectedKey=null;
   let sheetData={};
-
+  
   const pad=n=>n.toString().padStart(2,'0');
   const keyOf=(y,m,d)=>`${y}-${pad(m+1)}-${pad(d)}`;
+  
+
 
   /* ========= 공휴일 (월 단위 캐시/호출) ========= */
   function holidayCacheKey(year, month){ return `holidays_${year}-${pad(month+1)}_v1`; }
@@ -208,83 +203,6 @@
     const j=await res.json();if(!j||!j.ok)throw new Error(j.error||'삭제실패');
   }
 
-  /* === ⛅ 추가: 날씨 (Open-Meteo) === */
-  let geo = { lat: 37.5665, lon: 126.9780, ready:false }; // 기본: 서울
-  let monthWeather = {};     // {'YYYY-MM-DD': {code, tmax, tmin}}
-  let weatherFetchedFor = ''; // 'YYYY-MM'
-  let currentTemp = null;    // {key:'YYYY-MM-DD', temp: number}
-  const WEATHER_TZ = 'Asia/Tokyo';
-
-  // 간단 아이콘 (data URI)
-  function weatherIconDataUri(code){
-    const sun   = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><circle cx="10" cy="10" r="5" fill="%23FFC107"/></svg>';
-    const cloud = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><ellipse cx="10" cy="12" rx="8" ry="5" fill="%23B0BEC5"/></svg>';
-    const rain  = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><ellipse cx="10" cy="9" rx="8" ry="5" fill="%23B0BEC5"/><path d="M6 14 l-1 3 M10 14 l-1 3 M14 14 l-1 3" stroke="%2300A2FF" stroke-width="2"/></svg>';
-    const snow  = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><ellipse cx="10" cy="9" rx="8" ry="5" fill="%23B0BEC5"/><text x="10" y="16" text-anchor="middle" font-size="10" fill="%23ffffff">*</text></svg>';
-    const storm = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><ellipse cx="10" cy="9" rx="8" ry="5" fill="%23B0BEC5"/><polygon points="9,12 6,18 11,15 10,20 14,13" fill="%23FFC107"/></svg>';
-    if ([0].includes(code)) return sun;
-    if ([1,2,3,45,48].includes(code)) return cloud;
-    if ([51,53,55,61,63,65,80,81,82].includes(code)) return rain;
-    if ([71,73,75,77,85,86].includes(code)) return snow;
-    if ([95,96,99].includes(code)) return storm;
-    return cloud;
-  }
-
-  function yymm(y,m){ return `${y}-${pad(m+1)}`; }
-  function todayKey(){
-    const t = new Date();
-    return `${t.getFullYear()}-${pad(t.getMonth()+1)}-${pad(t.getDate())}`;
-  }
-
-  async function ensureMonthWeather(y,m){
-    const ym = yymm(y,m);
-    if (weatherFetchedFor === ym) return;
-
-    const start = `${y}-${pad(m+1)}-01`;
-    const end   = `${y}-${pad(m+1)}-${pad(new Date(y,m+1,0).getDate())}`;
-
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${geo.lat}&longitude=${geo.lon}` +
-                `&timezone=${encodeURIComponent(WEATHER_TZ)}` +
-                `&daily=weathercode,temperature_2m_max,temperature_2m_min` +
-                `&current_weather=true` +
-                `&start_date=${start}&end_date=${end}`;
-    try{
-      const res = await fetch(url);
-      const j = await res.json();
-      const days  = j?.daily?.time || [];
-      const codes = j?.daily?.weathercode || [];
-      const tmax  = j?.daily?.temperature_2m_max || [];
-      const tmin  = j?.daily?.temperature_2m_min || [];
-      const map = {};
-      for (let i=0;i<days.length;i++){
-        map[days[i]] = { code: codes[i], tmax: Math.round(tmax[i]), tmin: Math.round(tmin[i]) };
-      }
-      monthWeather = map;
-      weatherFetchedFor = ym;
-
-      if (j?.current_weather?.temperature != null) {
-        currentTemp = { key: todayKey(), temp: Math.round(j.current_weather.temperature) };
-      } else {
-        currentTemp = null;
-      }
-    }catch(e){
-      console.warn('weather fetch fail', e);
-      monthWeather = {};
-      currentTemp = null;
-      weatherFetchedFor = ym; // 실패 플래그(무한 재시도 방지)
-    }
-  }
-
-  // 최초 1회: 위치 권한 시 현재 좌표 사용(거부해도 기본값으로 진행)
-  (function initGeolocationOnce(){
-    if (!('geolocation' in navigator)) return;
-    navigator.geolocation.getCurrentPosition(
-      (pos)=>{ geo = { lat: pos.coords.latitude, lon: pos.coords.longitude, ready:true }; /* 다음 render 때 반영 */ },
-      ()=>{}, // 무시
-      { maximumAge: 3600_000, timeout: 5000, enableHighAccuracy: false }
-    );
-  })();
-
   /* ========= 렌더 ========= */
   function drawCalendar(){
     const y=state.year,m=state.month;
@@ -305,31 +223,11 @@
         const dateEl=document.createElement('div');dateEl.className='date';dateEl.textContent=dayIndex;cell.appendChild(dateEl);
         const k=keyOf(y,m,dayIndex);const val=sheetData[k];
 
-        // 공휴일 배지
+        // 공휴일 배지(월 단위 map)
         if(holidayMap && holidayMap[k]){
           const b=document.createElement('div');b.className='holiday-badge';b.textContent=holidayMap[k];cell.appendChild(b);cell.classList.add('sun');
         }
 
-        /* ⛅ 추가: 날씨 아이콘 + 기온 (최고/최저, 오늘은 현재기온도) */
-        const w = monthWeather[k];
-        if (w && typeof w.code === 'number') {
-          const img = document.createElement('img');
-          img.className = 'weather-icon';
-          img.alt = '날씨';
-          img.src = weatherIconDataUri(w.code);
-          cell.appendChild(img);
-
-          const temp = document.createElement('div');
-          temp.className = 'weather-temp';
-          let text = `${w.tmax}°/${w.tmin}°`;
-          if (currentTemp && currentTemp.key === k) {
-            text = `${w.tmax}°/${w.tmin}° · ${currentTemp.temp}°`;
-          }
-          temp.textContent = text;
-          cell.appendChild(temp);
-        }
-
-        // 출근/상태 표시
         if(val){
           const t=document.createElement('div');t.className='time';t.textContent=val;
           if(val==='7시'||val==='8시')t.classList.add('sevenEight');
@@ -337,6 +235,8 @@
           else if(val==='휴무')t.classList.add('off');
           else if(['연차','병가','공가','출장','돌봄'].includes(val)) t.classList.add('special');
           else if(['사가독서','체련대회'].includes(val)) t.classList.add('special_small');
+          
+          
           cell.appendChild(t);
         }
 
@@ -347,27 +247,25 @@
     }
   }
 
-  async function render(){
-    const y=state.year, m=state.month;
+  function render(){
     drawCalendar();
+    const y=state.year, m=state.month;
     if(holidayYear!==y || holidayMonth!==m){
       (async()=>{ await ensureHolidayForMonth(y,m); if(state.year===y && state.month===m) drawCalendar(); })();
     }
-    await ensureMonthWeather(y,m); // ⛅ 추가: 보이는 달의 날씨 확보
-    if(state.year===y && state.month===m) drawCalendar(); // 날씨 반영 재렌더
   }
 
   /* ========= 모달 ========= */
   function openModal(key,value){selectedKey=key;modalDate.textContent=key+' 출근/상태';timeSelect.value=value||'';modal.style.display='flex';}
   function closeModal(){modal.style.display='none';}
 
-  // 낙관적 업데이트
+  // ✅ 낙관적 업데이트: 저장/삭제 후 재다운로드 없이 즉시 반영
   saveBtn.addEventListener('click',async()=>{
     if(!selectedKey) return;
     try{
       const v = timeSelect.value || '';
       await saveToSheet(selectedKey, v);
-      sheetData[selectedKey] = v;
+      sheetData[selectedKey] = v;     // 즉시 반영
       drawCalendar();
       closeModal();
     }catch(e){ alert('저장 실패: '+e.message); }
@@ -377,7 +275,7 @@
     if(!selectedKey) return;
     try{
       await deleteFromSheet(selectedKey);
-      delete sheetData[selectedKey];
+      delete sheetData[selectedKey];  // 즉시 반영
       drawCalendar();
       closeModal();
     }catch(e){ alert('삭제 실패: '+e.message); }
@@ -393,17 +291,35 @@
 
   (async()=>{try{await reloadFromSheet();}catch{}render();})();
 
-  // 스와이프 제스처
-  let touchStartX = 0, touchEndX = 0;
-  grid.addEventListener('touchstart',(e)=>{touchStartX=e.changedTouches[0].screenX;},false);
-  grid.addEventListener('touchend',(e)=>{touchEndX=e.changedTouches[0].screenX;handleSwipe();},false);
-  function handleSwipe(){
-    const diff = touchEndX - touchStartX;
-    if (Math.abs(diff) > 50){
-      if (diff > 0){ state.month--; if(state.month<0){state.month=11;state.year--;} render(); }
-      else { state.month++; if(state.month>11){state.month=0;state.year++;} render(); }
+  // 스와이프 제스처 추가
+let touchStartX = 0;
+let touchEndX = 0;
+
+grid.addEventListener('touchstart', (e) => {
+  touchStartX = e.changedTouches[0].screenX;
+}, false);
+
+grid.addEventListener('touchend', async (e) => {
+  touchEndX = e.changedTouches[0].screenX;
+  handleSwipe();
+}, false);
+
+function handleSwipe() {
+  const diff = touchEndX - touchStartX;
+  if (Math.abs(diff) > 50) { // 50px 이상 움직여야 동작
+    if (diff > 0) {
+      // 👉 오른쪽으로 스와이프 → 이전 달
+      state.month--;
+      if(state.month < 0){ state.month=11; state.year--; }
+      render();
+    } else {
+      // 👈 왼쪽으로 스와이프 → 다음 달
+      state.month++;
+      if(state.month > 11){ state.month=0; state.year++; }
+      render();
     }
   }
+}
 </script>
 </body>
 </html>
