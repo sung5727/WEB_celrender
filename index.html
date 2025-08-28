@@ -96,14 +96,14 @@
       <div class="controls">
         <button class="primary" id="saveBtn">저장</button>
         <button class="danger" id="clearBtn">삭제</button>
-        <button class="black"id="cancelBtn">취소</button>
+        <button class="black" id="cancelBtn">취소</button>
       </div>
     </div>
   </div>
 
 <script>
   /* ========= 설정 ========= */
-  const WEBAPP_URL  = 'https://script.google.com/macros/s/AKfycbxAHxLdYEda4eNQAcSJLiZbIkTaYnwI-n7kzFq6Pcga8ZYqgcdBcgjWZAWiO_YHQc8b/exec'; // e.g. https://script.google.com/macros/s/XXX/exec
+  const WEBAPP_URL  = 'https://script.google.com/macros/s/AKfycbwA1CtxLfbziu52wTUa-R4TKrN4NQajVtFKDVwYBFhGalUPU3QcHbK24mueAMkI8DLM/exec'; // e.g. https://script.google.com/macros/s/XXX/exec
   const SERVICE_KEY = 'f3fe3ff25a8fe96c692eacced03e726ebf3443ee7cdd8e50a1d06a1b0d7ee8cf'; // 공휴일 API 키 (있으면 입력, 없으면 공휴일 비활성)
   const USE_HOLIDAYS = SERVICE_KEY && SERVICE_KEY.trim().length > 0;
   const SERVICE_KEY_PARAM = (SERVICE_KEY||'').includes('%') ? SERVICE_KEY : encodeURIComponent(SERVICE_KEY);
