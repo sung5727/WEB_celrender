@@ -122,43 +122,11 @@
   const clearBtn=document.getElementById('clearBtn');
   const cancelBtn=document.getElementById('cancelBtn');
 
-  /*
   let state=(()=>{const now=new Date();return{year:now.getFullYear(),month:now.getMonth()};})(); 
   let selectedKey=null;
   let sheetData={};
     const pad=n=>n.toString().padStart(2,'0');
   const keyOf=(y,m,d)=>`${y}-${pad(m+1)}-${pad(d)}`;
-  */
-
-  function loadLastState(){
-  try{
-    const s = localStorage.getItem('lastState');
-    if(!s) return null;
-    const obj = JSON.parse(s);
-    if (typeof obj.year==='number' && typeof obj.month==='number' &&
-        obj.month>=0 && obj.month<=11) return obj;
-  }catch(e){}
-  return null;
-}
-function saveLastState(){
-  localStorage.setItem('lastState', JSON.stringify(state));
-}
-
-let state = (()=>{ 
-  const saved = loadLastState();
-  if (saved) return saved;
-  const now = new Date();
-  return { year: now.getFullYear(), month: now.getMonth() };
-})();
-
-function render(){
-  const y = state.year, m = state.month;
-  monthTitle.textContent = `${y}. ${pad(m+1)}.`;
-
-  // ... 기존 캘린더 렌더링 코드 ...
-
-  saveLastState(); // ✅ 마지막에 위치
-}
   
 
 
