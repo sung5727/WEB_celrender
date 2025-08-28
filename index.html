@@ -32,18 +32,39 @@
   .date{font-weight:700}
   .sun{color:var(--red)} .sat{color:var(--blue)}
   .muted{color:#c7cdd7}
-  .today .date{display: flex; align-items: center; justify-content: center; width: 33px; height: 20px; border-radius: 6px; background: #323232; color: #fff; }
-  /*inline-block; width: 28px; height: 28px; line-height: 28px; text-aligh: center; border-radius: 6px; background: #000; color: #fff; font-weight: 700; }*/
-  /*{outline:2px solid #9ca3af; outline-offset:-2px; border-radius:8px;} */
+  .today .date{
+    display:flex;align-items:center;justify-content:center;
+    width:33px;height:20px;border-radius:6px;background:#323232;color:#fff;
+  }
 
-  .holiday-badge{ position:absolute;left:6px;top:24px;font-size:10px;color:var(--red);font-weight:700;white-space:nowrap }
+  .holiday-badge{
+    position:absolute;left:6px;top:24px;font-size:10px;color:var(--red);font-weight:700;white-space:nowrap
+  }
 
-  .time{ position:absolute;bottom:0;left:0;width:100%;height:22px;line-height:22px;text-align:center;font-size:13px;font-weight:600;border-radius:0; }
-  .time.sevenEight{ background:#d1d5db; color:#000; } /* 7/8시 */
-  .time.noon{ background:#FFCA9B; color:#000; }       /* 12시 */
-  .time.off{ background:#d1fae5; color:#16a34a; }   /* 휴무 */
-  .time.special{ background:#3c3c3c   ; color:#fff; }     /* 연차/병가/공가/출장/돌봄 */
-  .time.special_small{ font-size:12px; background:#3c3c3c   ; color:#fff; } /* 사가독서/체련대회 폰트크기 작게*/
+  .time{
+    position:absolute;bottom:0;left:0;width:100%;height:22px;line-height:22px;
+    text-align:center;font-size:13px;font-weight:600;border-radius:0;
+  }
+  .time.sevenEight{ background:#d1d5db; color:#000; }   /* 7/8시 */
+  .time.noon{ background:#FFCA9B; color:#000; }        /* 12시 */
+  .time.off{ background:#d1fae5; color:#16a34a; }      /* 휴무 */
+  .time.special{ background:#3c3c3c; color:#fff; }     /* 연차/병가/공가/출장/돌봄 */
+  .time.special_small{ font-size:12px; background:#3c3c3c; color:#fff; } /* 사가독서/체련대회 */
+
+  /* 모달(오버레이) */
+  #modal{
+    display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);
+    z-index:50;align-items:flex-end;
+  }
+  #modal.show{ display:flex; } /* ← 보여줄 때만 flex */
+  .sheet{
+    width:100%;max-width:740px;margin:0 auto;
+    background:#fff;border-top-left-radius:16px;border-top-right-radius:16px;
+    padding:16px;box-shadow:0 -6px 20px rgba(0,0,0,.15);
+  }
+  .sheet h3{margin:0 0 10px 0;font-size:16px}
+  .controls{display:flex;gap:8px;margin-top:12px}
+  select{width:100%;height:44px;border:1px solid var(--border);border-radius:10px;padding:0 10px;font-size:16px;background:#fff}
 </style>
 </head>
 <body>
@@ -83,17 +104,17 @@
         <option value="체련대회">체련대회</option>
       </select>
       <div class="controls">
-        <button class="primary" id="saveBtn">  저장  </button>
-        <button class="danger" id="clearBtn">  삭제  </button>
-        <button calss id="cancelBtn">  취소  </button>
+        <button class="primary" id="saveBtn">저장</button>
+        <button class="danger" id="clearBtn">삭제</button>
+        <button class="cancel" id="cancelBtn">취소</button>
       </div>
     </div>
   </div>
 
 <script>
   /* ========= 설정 ========= */
-  const WEBAPP_URL  = 'https://script.google.com/macros/s/AKfycbwA1CtxLfbziu52wTUa-R4TKrN4NQajVtFKDVwYBFhGalUPU3QcHbK24mueAMkI8DLM/exec'; // e.g. https://script.google.com/macros/s/XXX/exec
-  const SERVICE_KEY = 'f3fe3ff25a8fe96c692eacced03e726ebf3443ee7cdd8e50a1d06a1b0d7ee8cf'; // 공휴일 API 키 (있으면 입력, 없으면 공휴일 비활성)
+  const WEBAPP_URL  = 'https://script.google.com/macros/s/AKfycbwA1CtxLfbziu52wTUa-R4TKrN4NQajVtFKDVwYBFhGalUPU3QcHbK24mueAMkI8DLM/exec';
+  const SERVICE_KEY = 'f3fe3ff25a8fe96c692eacced03e726ebf3443ee7cdd8e50a1d06a1b0d7ee8cf';
   const USE_HOLIDAYS = SERVICE_KEY && SERVICE_KEY.trim().length > 0;
   const SERVICE_KEY_PARAM = (SERVICE_KEY||'').includes('%') ? SERVICE_KEY : encodeURIComponent(SERVICE_KEY);
   const HOLIDAY_TTL_DAYS = 7;
@@ -110,17 +131,17 @@
   const clearBtn=document.getElementById('clearBtn');
   const cancelBtn=document.getElementById('cancelBtn');
 
-  /* ===== 마지막 본 달 복원: state 초기화 변경 (lastView) ===== */
+  /* 마지막 본 달 복원 */
   let state = (() => {
-    try {
-      const saved = localStorage.getItem('lastView');
-      if (saved) {
-        const obj = JSON.parse(saved);
-        if (typeof obj.year === 'number' && typeof obj.month === 'number' && obj.month>=0 && obj.month<=11) {
-          return obj; // 저장된 마지막 연/월로 시작
+    try{
+      const s = localStorage.getItem('lastView');
+      if (s){
+        const obj = JSON.parse(s);
+        if (typeof obj.year==='number' && typeof obj.month==='number' && obj.month>=0 && obj.month<=11){
+          return obj;
         }
       }
-    } catch(e) {}
+    }catch(e){}
     const now=new Date();
     return {year:now.getFullYear(), month:now.getMonth()};
   })();
@@ -220,9 +241,10 @@
         const dateEl=document.createElement('div');dateEl.className='date';dateEl.textContent=dayIndex;cell.appendChild(dateEl);
         const k=keyOf(y,m,dayIndex);const val=sheetData[k];
 
-        // 공휴일 배지(월 단위 map)
+        // 공휴일 배지
         if(holidayMap && holidayMap[k]){
-          const b=document.createElement('div');b.className='holiday-badge';b.textContent=holidayMap[k];cell.appendChild(b);cell.classList.add('sun');
+          const b=document.createElement('div');b.className='holiday-badge';b.textContent=holidayMap[k];
+          cell.appendChild(b);cell.classList.add('sun');
         }
 
         if(val){
@@ -248,21 +270,28 @@
     if(holidayYear!==y || holidayMonth!==m){
       (async()=>{ await ensureHolidayForMonth(y,m); if(state.year===y && state.month===m) drawCalendar(); })();
     }
-    /* ===== 마지막 본 달 저장 (lastView) ===== */
-    localStorage.setItem('lastView', JSON.stringify({ year: y, month: m }));
+    // 마지막 본 위치 저장
+    localStorage.setItem('lastView', JSON.stringify({ year:y, month:m }));
   }
 
   /* ========= 모달 ========= */
-  function openModal(key,value){selectedKey=key;modalDate.textContent=key+' 출근/상태';timeSelect.value=value||'';modal.style.display='flex';}
-  function closeModal(){modal.style.display='none';}
+  function openModal(key,value){
+    selectedKey=key;
+    modalDate.textContent=key+' 출근/상태';
+    timeSelect.value=value||'';
+    modal.classList.add('show');     // ← 클래스 토글
+  }
+  function closeModal(){
+    modal.classList.remove('show');  // ← 클래스 토글
+  }
 
-  // ✅ 낙관적 업데이트: 저장/삭제 후 재다운로드 없이 즉시 반영
+  // 저장/삭제(낙관적 업데이트)
   saveBtn.addEventListener('click',async()=>{
     if(!selectedKey) return;
     try{
       const v = timeSelect.value || '';
       await saveToSheet(selectedKey, v);
-      sheetData[selectedKey] = v;     // 즉시 반영
+      sheetData[selectedKey] = v;
       drawCalendar();
       closeModal();
     }catch(e){ alert('저장 실패: '+e.message); }
@@ -272,7 +301,7 @@
     if(!selectedKey) return;
     try{
       await deleteFromSheet(selectedKey);
-      delete sheetData[selectedKey];  // 즉시 반영
+      delete sheetData[selectedKey];
       drawCalendar();
       closeModal();
     }catch(e){ alert('삭제 실패: '+e.message); }
@@ -288,36 +317,17 @@
 
   (async()=>{try{await reloadFromSheet();}catch{}render();})();
 
-  // 스와이프 제스처 추가
-  let touchStartX = 0;
-  let touchEndX = 0;
-
-  grid.addEventListener('touchstart', (e) => {
-    touchStartX = e.changedTouches[0].screenX;
-  }, false);
-
-  grid.addEventListener('touchend', async (e) => {
-    touchEndX = e.changedTouches[0].screenX;
-    handleSwipe();
-  }, false);
-
-  function handleSwipe() {
+  // 스와이프 제스처
+  let touchStartX = 0, touchEndX = 0;
+  grid.addEventListener('touchstart',(e)=>{touchStartX=e.changedTouches[0].screenX;},false);
+  grid.addEventListener('touchend',(e)=>{touchEndX=e.changedTouches[0].screenX;handleSwipe();},false);
+  function handleSwipe(){
     const diff = touchEndX - touchStartX;
-    if (Math.abs(diff) > 50) { // 50px 이상 움직여야 동작
-      if (diff > 0) {
-        // 👉 오른쪽으로 스와이프 → 이전 달
-        state.month--;
-        if(state.month < 0){ state.month=11; state.year--; }
-        render();
-      } else {
-        // 👈 왼쪽으로 스와이프 → 다음 달
-        state.month++;
-        if(state.month > 11){ state.month=0; state.year++; }
-        render();
-      }
+    if (Math.abs(diff) > 50){
+      if (diff > 0){ state.month--; if(state.month<0){state.month=11;state.year--;} render(); }
+      else { state.month++; if(state.month>11){state.month=0;state.year++;} render(); }
     }
   }
 </script>
 </body>
 </html>
-```0
