@@ -122,9 +122,13 @@
   const clearBtn=document.getElementById('clearBtn');
   const cancelBtn=document.getElementById('cancelBtn');
 
-  /*let state=(()=>{const now=new Date();return{year:now.getFullYear(),month:now.getMonth()};})(); 
+  /*
+  let state=(()=>{const now=new Date();return{year:now.getFullYear(),month:now.getMonth()};})(); 
   let selectedKey=null;
-  let sheetData={};*/
+  let sheetData={};
+    const pad=n=>n.toString().padStart(2,'0');
+  const keyOf=(y,m,d)=>`${y}-${pad(m+1)}-${pad(d)}`;
+  */
 
   function loadLastState(){
   try{
@@ -157,9 +161,6 @@ function render(){
 }
   
 
-  
-  const pad=n=>n.toString().padStart(2,'0');
-  const keyOf=(y,m,d)=>`${y}-${pad(m+1)}-${pad(d)}`;
 
   /* ========= 공휴일 (월 단위 캐시/호출) ========= */
   function holidayCacheKey(year, month){ return `holidays_${year}-${pad(month+1)}_v1`; }
