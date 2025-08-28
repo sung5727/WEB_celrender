@@ -124,6 +124,17 @@
 
   /*let state=(()=>{const now=new Date();return{year:now.getFullYear(),month:now.getMonth()};})();*/
  /*마지막달 기억해서 실행할때 호출 그 값을 기억하기 위해 숫자로 기억*/
+ function render(){
+  const y = state.year, m = state.month;
+  monthTitle.textContent = `${y}. ${pad(m+1)}.`;
+
+  // ... 기존 drawCalendar 호출 코드들 ...
+
+  // 마지막 본 위치 저장
+  localStorage.setItem('lastState', JSON.stringify(state));
+}
+
+  
   let state = (()=>{ 
   const saved = localStorage.getItem('lastState');
   if (saved) {
@@ -135,16 +146,7 @@
   let selectedKey=null;
   let sheetData={};
 
-  function render(){
-  const y = state.year, m = state.month;
-  monthTitle.textContent = `${y}. ${pad(m+1)}.`;
-
-  // ... 기존 drawCalendar 호출 코드들 ...
-
-  // 마지막 본 위치 저장
-  localStorage.setItem('lastState', JSON.stringify(state));
-}
-
+  
   const pad=n=>n.toString().padStart(2,'0');
   const keyOf=(y,m,d)=>`${y}-${pad(m+1)}-${pad(d)}`;
 
