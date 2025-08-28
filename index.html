@@ -22,7 +22,6 @@
   .mini{height:36px;padding:0 12px;border-radius:9px;border:1px solid var(--border);background:#fff;font-weight:600;font-size:13px;cursor:pointer}
   .navbtn{width:36px;height:36px;border-radius:999px;border:1px solid var(--border);background:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;cursor:pointer}
 
-
   .weekday{display:grid;grid-template-columns:repeat(7,1fr);background:#f3f4f6;border-bottom:1px solid var(--border)}
   .weekday div{padding:10px 0;text-align:center;font-weight:600;color:var(--sub)}
   .weekday div:first-child{color:var(--red)}
@@ -34,7 +33,6 @@
   .sun{color:var(--red)} .sat{color:var(--blue)}
   .muted{color:#c7cdd7}
   .today .date{display: flex; align-items: center; justify-content: center; width: 33px; height: 20px; border-radius: 6px; background: #323232; color: #fff; }
-  
   /*inline-block; width: 28px; height: 28px; line-height: 28px; text-aligh: center; border-radius: 6px; background: #000; color: #fff; font-weight: 700; }*/
   /*{outline:2px solid #9ca3af; outline-offset:-2px; border-radius:8px;} */
 
@@ -44,20 +42,8 @@
   .time.sevenEight{ background:#d1d5db; color:#000; } /* 7/8시 */
   .time.noon{ background:#FFCA9B; color:#000; }       /* 12시 */
   .time.off{ background:#d1fae5; color:#16a34a; }   /* 휴무 */
-  .time.special{ background:#3c3c3c	; color:#fff; }     /* 연차/병가/공가/출장/돌봄 */
-  .time.special_small{ font-size:12px; background:#3c3c3c	; color:#fff; } /* 사가독서/체련대회 폰트크기 작게*/
-  
-
-  /* 모달 */
-  #modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;align-items:flex-end}
-  .sheet{
-    width:100%;max-width:740px;margin:0 auto;
-    background:#fff;border-top-left-radius:16px;border-top-right-radius:16px;
-    padding:16px;box-shadow:0 -6px 20px rgba(0,0,0,.15);
-  }
-  .sheet h3{margin:0 0 10px 0;font-size:16px}
-  .controls{display:flex;gap:8px;margin-top:12px}
-  select{width:100%;height:44px;border:1px solid var(--border);border-radius:10px;padding:0 10px;font-size:16px;background:#fff}
+  .time.special{ background:#3c3c3c   ; color:#fff; }     /* 연차/병가/공가/출장/돌봄 */
+  .time.special_small{ font-size:12px; background:#3c3c3c   ; color:#fff; } /* 사가독서/체련대회 폰트크기 작게*/
 </style>
 </head>
 <body>
@@ -124,15 +110,26 @@
   const clearBtn=document.getElementById('clearBtn');
   const cancelBtn=document.getElementById('cancelBtn');
 
-  let state=(()=>{const now=new Date();return{year:now.getFullYear(),month:now.getMonth()};})();
-  
+  /* ===== 마지막 본 달 복원: state 초기화 변경 (lastView) ===== */
+  let state = (() => {
+    try {
+      const saved = localStorage.getItem('lastView');
+      if (saved) {
+        const obj = JSON.parse(saved);
+        if (typeof obj.year === 'number' && typeof obj.month === 'number' && obj.month>=0 && obj.month<=11) {
+          return obj; // 저장된 마지막 연/월로 시작
+        }
+      }
+    } catch(e) {}
+    const now=new Date();
+    return {year:now.getFullYear(), month:now.getMonth()};
+  })();
+
   let selectedKey=null;
   let sheetData={};
-  
+
   const pad=n=>n.toString().padStart(2,'0');
   const keyOf=(y,m,d)=>`${y}-${pad(m+1)}-${pad(d)}`;
-  
-
 
   /* ========= 공휴일 (월 단위 캐시/호출) ========= */
   function holidayCacheKey(year, month){ return `holidays_${year}-${pad(month+1)}_v1`; }
@@ -235,8 +232,6 @@
           else if(val==='휴무')t.classList.add('off');
           else if(['연차','병가','공가','출장','돌봄'].includes(val)) t.classList.add('special');
           else if(['사가독서','체련대회'].includes(val)) t.classList.add('special_small');
-          
-          
           cell.appendChild(t);
         }
 
@@ -253,6 +248,8 @@
     if(holidayYear!==y || holidayMonth!==m){
       (async()=>{ await ensureHolidayForMonth(y,m); if(state.year===y && state.month===m) drawCalendar(); })();
     }
+    /* ===== 마지막 본 달 저장 (lastView) ===== */
+    localStorage.setItem('lastView', JSON.stringify({ year: y, month: m }));
   }
 
   /* ========= 모달 ========= */
@@ -292,34 +289,35 @@
   (async()=>{try{await reloadFromSheet();}catch{}render();})();
 
   // 스와이프 제스처 추가
-let touchStartX = 0;
-let touchEndX = 0;
+  let touchStartX = 0;
+  let touchEndX = 0;
 
-grid.addEventListener('touchstart', (e) => {
-  touchStartX = e.changedTouches[0].screenX;
-}, false);
+  grid.addEventListener('touchstart', (e) => {
+    touchStartX = e.changedTouches[0].screenX;
+  }, false);
 
-grid.addEventListener('touchend', async (e) => {
-  touchEndX = e.changedTouches[0].screenX;
-  handleSwipe();
-}, false);
+  grid.addEventListener('touchend', async (e) => {
+    touchEndX = e.changedTouches[0].screenX;
+    handleSwipe();
+  }, false);
 
-function handleSwipe() {
-  const diff = touchEndX - touchStartX;
-  if (Math.abs(diff) > 50) { // 50px 이상 움직여야 동작
-    if (diff > 0) {
-      // 👉 오른쪽으로 스와이프 → 이전 달
-      state.month--;
-      if(state.month < 0){ state.month=11; state.year--; }
-      render();
-    } else {
-      // 👈 왼쪽으로 스와이프 → 다음 달
-      state.month++;
-      if(state.month > 11){ state.month=0; state.year++; }
-      render();
+  function handleSwipe() {
+    const diff = touchEndX - touchStartX;
+    if (Math.abs(diff) > 50) { // 50px 이상 움직여야 동작
+      if (diff > 0) {
+        // 👉 오른쪽으로 스와이프 → 이전 달
+        state.month--;
+        if(state.month < 0){ state.month=11; state.year--; }
+        render();
+      } else {
+        // 👈 왼쪽으로 스와이프 → 다음 달
+        state.month++;
+        if(state.month > 11){ state.month=0; state.year++; }
+        render();
+      }
     }
   }
-}
 </script>
 </body>
 </html>
+```0
