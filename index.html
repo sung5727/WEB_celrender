@@ -282,6 +282,36 @@
   sheetLoadBtn.addEventListener('click',async()=>{try{await reloadFromSheet();drawCalendar();alert('불러오기 성공');}catch(e){alert('불러오기 실패:'+e.message);}});
 
   (async()=>{try{await reloadFromSheet();}catch{}render();})();
+
+  // 스와이프 제스처 추가
+let touchStartX = 0;
+let touchEndX = 0;
+
+grid.addEventListener('touchstart', (e) => {
+  touchStartX = e.changedTouches[0].screenX;
+}, false);
+
+grid.addEventListener('touchend', async (e) => {
+  touchEndX = e.changedTouches[0].screenX;
+  handleSwipe();
+}, false);
+
+function handleSwipe() {
+  const diff = touchEndX - touchStartX;
+  if (Math.abs(diff) > 50) { // 50px 이상 움직여야 동작
+    if (diff > 0) {
+      // 👉 오른쪽으로 스와이프 → 이전 달
+      state.month--;
+      if(state.month < 0){ state.month=11; state.year--; }
+      render();
+    } else {
+      // 👈 왼쪽으로 스와이프 → 다음 달
+      state.month++;
+      if(state.month > 11){ state.month=0; state.year++; }
+      render();
+    }
+  }
+}
 </script>
 </body>
 </html>
