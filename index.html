@@ -39,7 +39,7 @@
 
   .holiday-badge{ position:absolute;left:6px;top:24px;font-size:10px;color:var(--red);font-weight:700;white-space:nowrap }
 
-  .time{ position:absolute;bottom:0;left:0;width:100%;height:22px;line-height:22px;text-align:center;font-size:12px;font-weight:600;border-radius:0; }
+  .time{ position:absolute;bottom:0;left:0;width:100%;height:22px;line-height:22px;text-align:center;font-size:14px;font-weight:600;border-radius:0; }
   .time.sevenEight{ background:#d1d5db; color:#000; } /* 7/8시 */
   .time.noon{ background:orange; color:#000; }       /* 12시 */
   .time.off{ background:#d1fae5; color:#16a34a; }   /* 휴무 */
@@ -91,11 +91,12 @@
         <option value="출장">출장</option>
         <option value="돌봄">돌봄</option>
         <option value="사가독서">사가독서</option>
+        <option value="사가독서">체련대회</option>
       </select>
       <div class="controls">
-        <button class="primary" id="saveBtn">저장(시트)</button>
-        <button class="danger" id="clearBtn">삭제(시트)</button>
-        <button id="cancelBtn">취소</button>
+        <button class="primary" id="saveBtn">저장</button>
+        <button class="danger" id="clearBtn">삭제</button>
+        <button class="black"id="cancelBtn">취소</button>
       </div>
     </div>
   </div>
@@ -226,7 +227,7 @@
           if(val==='7시'||val==='8시')t.classList.add('sevenEight');
           else if(val==='12시')t.classList.add('noon');
           else if(val==='휴무')t.classList.add('off');
-          else if(['연차','병가','공가','출장','돌봄','사가독서'].includes(val))t.classList.add('special');
+          else if(['연차','병가','공가','출장','돌봄','사가독서','체련대회'].includes(val))t.classList.add('special');
           cell.appendChild(t);
         }
 
@@ -277,7 +278,7 @@
   /* ========= 월 네비 ========= */
   prevBtn.addEventListener('click',()=>{state.month--;if(state.month<0){state.month=11;state.year--;}render();});
   nextBtn.addEventListener('click',()=>{state.month++;if(state.month>11){state.month=0;state.year++;}render();});
-  sheetLoadBtn.addEventListener('click',async()=>{try{await reloadFromSheet();drawCalendar();alert('시트에서 불러왔습니다.');}catch(e){alert('불러오기 실패:'+e.message);}});
+  sheetLoadBtn.addEventListener('click',async()=>{try{await reloadFromSheet();drawCalendar();alert('불러오기 성공');}catch(e){alert('불러오기 실패:'+e.message);}});
 
   (async()=>{try{await reloadFromSheet();}catch{}render();})();
 </script>
