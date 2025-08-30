@@ -36,6 +36,9 @@
     display:flex;align-items:center;justify-content:center;
     width:33px;height:20px;border-radius:6px;background:#323232;color:#fff;
   }
+  .today.sun .date{background:var(--red);}
+  .today.sun .date{background:var(--blue);}
+  
 
   .holiday-badge{
     position:absolute;left:6px;top:24px;font-size:10px;color:var(--red);font-weight:700;white-space:nowrap
@@ -257,7 +260,13 @@
           cell.appendChild(t);
         }
 
-        if(today.getFullYear()===y&&today.getMonth()===m&&today.getDate()===dayIndex){cell.classList.add('today');}
+        if(today.getFullYear()===y&&today.getMonth()===m&&today.getDate()===dayIndex)
+        {cell.classList.add('today');
+                  if(dow==0)
+                    cell.classList.add('sun');
+                  if(dow==6)
+                    cell.classList.add('sat');
+        }
         cell.addEventListener('click',()=>openModal(k,val||''));
       }
       grid.appendChild(cell);
