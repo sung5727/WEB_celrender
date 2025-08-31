@@ -29,25 +29,27 @@
   .cell{height:72px;padding:6px 8px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);position:relative;background:#fff}
   .grid .cell:nth-child(7n){border-right:none}
   .date{font-weight:700}
-  .sun .date{color:var(--red)} 
+  .sun .date{color:var(--red)}
   .sat .date{color:var(--blue)}
   .muted{color:#c7cdd7}
 
   /* 엣지(앞/뒤 달) 흐리게 */
   .edge .date{ color:#c7cdd7; }
   .edge .time{ opacity:.55; }
+  .edge.sun .date { color:rgba(225,29,72,0.5); }   /* 일요일 엣지 → 흐린 빨강 */
+  .edge.sat .date { color:rgba(37,99,235,0.5); }   /* 토요일 엣지 → 흐린 파랑 */
+  .edge.holiday .date { color:rgba(225,29,72,0.5); } /* 공휴일 엣지 → 흐린 빨강 */
+  .edge .holiday-badge { opacity:.5; }
 
-  /* 오늘 날짜 셀 전체 배경 연한 회색 */
-  .cell.today { background: #f3f4f6; }
-  /* 오늘 날짜(네 설정 유지) */
+  /* 오늘 날짜 스타일 */
   .today .date{
     display:flex;align-items:center;justify-content:center;
     width:33px;height:20px;border-radius:6px;
     background:#323232;color:#fff;
     border:2px solid transparent;
   }
-  .today.sun .date{ background: var(--red); }
-  .today.sat .date{ background: var(--blue); }
+  .today.sun .date{ border-color: var(--red); }
+  .today.sat .date{ border-color: var(--blue); }
 
   /* 공휴일 이름 */
   .holiday-badge{
@@ -120,7 +122,7 @@
 
 <script>
   const WEBAPP_URL  = 'https://script.google.com/macros/s/AKfycbwA1CtxLfbziu52wTUa-R4TKrN4NQajVtFKDVwYBFhGalUPU3QcHbK24mueAMkI8DLM/exec';
-  const SERVICE_KEY = 'f3fe3ff25a8fe96c692eacced03e726ebf3443ee7cdd8e50a1b0d7ee8cf'; // 네 키
+  const SERVICE_KEY = 'f3fe3ff25a8fe96c692eacced03e726ebf3443ee7cdd8e50a1d06a1b0d7ee8cf'; // 공휴일 API 키 입력
   const USE_HOLIDAYS = SERVICE_KEY && SERVICE_KEY.trim().length > 0;
   const SERVICE_KEY_PARAM = encodeURIComponent(SERVICE_KEY);
 
@@ -143,7 +145,13 @@
   const pad=n=>n.toString().padStart(2,'0');
   const keyOf=(y,m,d)=>`${y}-${pad(m+1)}-${pad(d)}`;
 
-  /* 공휴일 (현재 달만) */
+  // (보조) month 오프셋 계산
+  function ymAdd(year, month, delta){
+    const d = new Date(year, month + delta, 1);
+    return { y: d.getFullYear(), m: d.getMonth() };
+  }
+
+  /* 공휴일 (특정 월) */
   async function fetchHolidays(year,month){
     if(!USE_HOLIDAYS) return {};
     const url=`https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo?solYear=${year}&solMonth=${pad(month+1)}&numOfRows=100&_type=json&ServiceKey=${SERVICE_KEY_PARAM}`;
@@ -162,7 +170,7 @@
     return map;
   }
 
-  /* 시트 */
+  /* 시트 연동 */
   async function reloadFromSheet(){
     const res=await fetch(WEBAPP_URL+'?_='+Date.now());const j=await res.json();
     if(j&&j.ok) sheetData=j.data||{};
@@ -183,7 +191,7 @@
 
     const firstDay=new Date(y,m,1).getDay();
     const lastDate=new Date(y,m+1,0).getDate();
-    const prevLast=new Date(y,m,0).getDate(); // 이전달 마지막 날
+    const prevLast=new Date(y,m,0).getDate();
     const totalCells=Math.ceil((firstDay+lastDate)/7)*7;
 
     grid.innerHTML='';
@@ -193,46 +201,43 @@
       const cell=document.createElement('div');cell.className='cell';
 
       let dNum, cYear, cMonth, isEdge=false;
-
       if(i < firstDay){
-        // 앞쪽 빈칸 → 이전달 날짜 채움
         dNum = prevLast - firstDay + i + 1;
         cYear = (m===0 ? y-1 : y);
         cMonth = (m===0 ? 11 : m-1);
         isEdge = true;
       } else if (i >= firstDay + lastDate) {
-        // 뒤쪽 빈칸 → 다음달 날짜 채움
         dNum = i - (firstDay + lastDate) + 1;
         cYear = (m===11 ? y+1 : y);
         cMonth = (m===11 ? 0 : m+1);
         isEdge = true;
       } else {
-        // 이번달
         dNum = i - firstDay + 1;
         cYear = y; cMonth = m;
       }
 
-      const dow = i % 7; // 0=일, 6=토
+      const dow = i % 7; // 0=일,6=토
       if(dow===0) cell.classList.add('sun');
       if(dow===6) cell.classList.add('sat');
 
       const dateEl=document.createElement('div');
       dateEl.className='date';
       dateEl.textContent=dNum;
-
-      if(isEdge) cell.classList.add('edge');  // 흐리게
+      if(isEdge) cell.classList.add('edge');
       cell.appendChild(dateEl);
 
       const k=keyOf(cYear,cMonth,dNum);
 
-      // 현재 달만 공휴일 표시
-      if(!isEdge && holidayMap[k]){
+      // 공휴일 이름/색상
+      if(holidayMap[k]){
         const b=document.createElement('div'); b.className='holiday-badge'; b.textContent=holidayMap[k];
         cell.appendChild(b);
-        cell.classList.add('sun'); // 공휴일이면 숫자도 빨강
+        cell.classList.add('holiday');
+        if(!isEdge) cell.classList.add('sun'); // 이번달 공휴일은 빨강
+        else cell.classList.add('edge','holiday'); // 엣지는 흐린 빨강 (CSS)
       }
 
-      // 시트 값 표시 (엣지는 연하게)
+      // 시트 값
       const val=sheetData[k];
       if(val){
         const t=document.createElement('div'); t.className='time'; t.textContent=val;
@@ -245,26 +250,38 @@
         cell.appendChild(t);
       }
 
-      // 오늘 강조는 현재 달에만
+      // 오늘은 이번달일 때만
       if(!isEdge && today.getFullYear()===cYear && today.getMonth()===cMonth && today.getDate()===dNum){
         cell.classList.add('today');
         if(dow===0) cell.classList.add('sun');
         if(dow===6) cell.classList.add('sat');
       }
 
-      // 클릭(엣지도 입력 가능)
+      // 입력
       cell.addEventListener('click',()=>openModal(k,val||''));
-
       grid.appendChild(cell);
     }
   }
 
+  /* 렌더: 현재달 + 이전달 + 다음달 공휴일을 합쳐서 적용 */
   function render(){
     drawCalendar();
     localStorage.setItem('lastView', JSON.stringify(state));
-    (async()=>{
-      try{ holidayMap = await fetchHolidays(state.year, state.month); }catch(e){ holidayMap = {}; }
-      drawCalendar();
+
+    (async ()=>{
+      try{
+        const { y:py, m:pm } = ymAdd(state.year, state.month, -1);
+        const { y:ny, m:nm } = ymAdd(state.year, state.month,  1);
+        const [prevMap, currMap, nextMap] = await Promise.all([
+          fetchHolidays(py, pm),
+          fetchHolidays(state.year, state.month),
+          fetchHolidays(ny, nm),
+        ]);
+        holidayMap = Object.assign({}, prevMap, currMap, nextMap);
+      }catch(e){
+        holidayMap = {};
+      }
+      drawCalendar(); // 공휴일 반영해서 다시 그림 (엣지 포함)
     })();
   }
 
@@ -281,27 +298,21 @@
   nextBtn.addEventListener('click',()=>{state.month++;if(state.month>11){state.month=0;state.year++;}render();});
   sheetLoadBtn.addEventListener('click',async()=>{await reloadFromSheet();drawCalendar();alert('불러오기 성공');});
 
-  // === 스와이프 추가 ===
+  // 스와이프
   let touchStartX=0, touchEndX=0, touchStartY=0, touchEndY=0;
-  const SWIPE_THRESHOLD = 50;   // 가로 50px 이상
-  const VERTICAL_TOLERANCE = 40; // 세로 흔들림 허용
-
+  const SWIPE_THRESHOLD = 50, VERTICAL_TOLERANCE = 40;
   grid.addEventListener('touchstart', e=>{
     touchStartX = e.changedTouches[0].screenX;
     touchStartY = e.changedTouches[0].screenY;
   }, {passive:true});
-
   grid.addEventListener('touchend', e=>{
     touchEndX = e.changedTouches[0].screenX;
     touchEndY = e.changedTouches[0].screenY;
     const dx = touchEndX - touchStartX;
     const dy = touchEndY - touchStartY;
     if (Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dy) < VERTICAL_TOLERANCE){
-      if (dx < 0){ // 왼쪽으로 밀기 → 다음달
-        state.month++; if(state.month>11){state.month=0;state.year++;}
-      }else{       // 오른쪽으로 밀기 → 이전달
-        state.month--; if(state.month<0){state.month=11;state.year--;}
-      }
+      if (dx < 0){ state.month++; if(state.month>11){state.month=0;state.year++;} }
+      else { state.month--; if(state.month<0){state.month=11;state.year--;} }
       render();
     }
   }, {passive:true});
