@@ -41,6 +41,9 @@
   .edge.holiday .date { color:rgba(225,29,72,0.5); } /* 공휴일 엣지 → 흐린 빨강 */
   .edge .holiday-badge { opacity:.5; }
 
+  /* 오늘 날짜 배경 */
+  .cell .today { background:#f9fafb; }
+  
   /* 오늘 날짜 스타일 */
   .today .date{
     display:flex;align-items:center;justify-content:center;
@@ -61,11 +64,11 @@
     position:absolute;bottom:0;left:0;width:100%;height:22px;line-height:22px;
     text-align:center;font-size:13px;font-weight:600;border-radius:0;
   }
-  .time.sevenEight{ background:#d1d5db; color:#000; }
-  .time.noon{ background:#FFCA9B; color:#000; }
-  .time.off{ background:#d1fae5; color:#16a34a; }
-  .time.special{ background:#3c3c3c; color:#fff; }
-  .time.special_small{ font-size:12px; background:#3c3c3c; color:#fff; }
+  .time.sevenEight{ background:#E5E5E5; color:#000; }
+  .time.noon{ background:#FFB703; color:#000; }
+  .time.off{ background:#8ECAE6; color:#000; }
+  .time.special{ background:#8ECAE6; color:#000; }
+  .time.special_small{ font-size:12px; background:#219EBC; color:#000; }
 
   /* 모달 */
   #modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;align-items:flex-end}
