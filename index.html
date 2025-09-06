@@ -3,17 +3,21 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>출근캘린더(2025-08-28 제작)</title>
+<title>출근캘린더(250906_1956)</title>
 <style>
   :root{ --primary:#16a34a; --red:#e11d48; --blue:#2563eb; --text:#222; --sub:#6b7280; --border:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;color:var(--text)}
+  body{ margin:0;background:var(--bg);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+    color:var(--text); -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:geometricPrecision; }
   .wrap{max-width:740px;margin:0 auto;padding:12px}
   .card{background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:0 4px 10px rgba(0,0,0,.04);overflow:hidden}
 
   .topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);gap:8px}
   .title{font-weight:700;font-size:20px;display:flex;align-items:center;gap:8px}
   .actions{display:flex;gap:8px}
+  .wx{display:flex;gap:6px;align-items:center;margin-left:8px}
+  .wx-chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:3px 6px;border-radius:999px;background:#eef2f7;border:1px solid #e5e7eb;color:#111}
 
   button{height:40px;border-radius:10px;border:1px solid var(--border);background:#fff;padding:0 14px;font-weight:600;cursor:pointer}
   .primary{background:var(--primary);border-color:var(--primary);color:#fff}
@@ -25,56 +29,70 @@
   .weekday div{padding:10px 0;text-align:center;font-weight:600;color:var(--sub)}
   .weekday div:first-child{color:var(--red)}
   .weekday div:last-child{color:var(--blue)}
-  .grid{display:grid;grid-template-columns:repeat(7,1fr);}
-  .cell{height:72px;padding:6px 8px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);position:relative;background:#fff}
+
+  .grid{ display:grid;grid-template-columns:repeat(7,1fr); touch-action: pan-y; }
+  .cell{ height:72px; padding:22px 8px 6px 8px; border-right:1px solid var(--border); border-bottom:1px solid var(--border);
+    position:relative;background:#fff;overflow:hidden; }
   .grid .cell:nth-child(7n){border-right:none}
-  .date{font-weight:700}
-  .sun .date{color:var(--red)}
-  .sat .date{color:var(--blue)}
+
+  .date{ position:absolute; left:8px; top:6px; font-weight:700; line-height:1; z-index:1; }
+  .sun .date{color:var(--red)} .sat .date{color:var(--blue)}
   .muted{color:#c7cdd7}
+  .edge .date{ color:#c7cdd7; } .edge .time{ opacity:.55; }
+  .edge.sun .date { color:rgba(225,29,72,0.5); } .edge.sat .date { color:rgba(37,99,235,0.5); }
+  .edge.holiday .date { color:rgba(225,29,72,0.5); } .edge .holiday-badge { opacity:.5; }
 
-  /* 엣지(앞/뒤 달) 흐리게 */
-  .edge .date{ color:#c7cdd7; }
-  .edge .time{ opacity:.55; }
-  .edge.sun .date { color:rgba(225,29,72,0.5); }   /* 일요일 엣지 → 흐린 빨강 */
-  .edge.sat .date { color:rgba(37,99,235,0.5); }   /* 토요일 엣지 → 흐린 파랑 */
-  .edge.holiday .date { color:rgba(225,29,72,0.5); } /* 공휴일 엣지 → 흐린 빨강 */
-  .edge .holiday-badge { opacity:.5; }
+  .today {background:#f5f5f5}
+  .today .date { color:#000;font-weight:700;text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 
-  
-  /* 오늘 날짜 스타일 */
-  .today .date{
-    display:flex;align-items:center;justify-content:center;
-    width:33px;height:20px;border-radius:6px;
-    background:#219EBC;color:#fff;
-    border:2px solid transparent;
-  }
-  .today.sun .date{ border-color: var(--red); }
-  .today.sat .date{ border-color: var(--blue); }
+  .holiday-badge{ position:absolute;left:8px;top:26px;font-size:10px;color:var(--red);font-weight:700;white-space:nowrap;z-index:1; }
 
-  /* 공휴일 이름 */
-  .holiday-badge{
-    position:absolute;left:6px;top:24px;font-size:10px;color:var(--red);font-weight:700;white-space:nowrap
-  }
+  .time{ position:absolute;bottom:0;left:0;width:100%;height:22px;line-height:22px;text-align:center;font-size:13px;font-weight:600;border-radius:0; }
+  .time.sevenEight{ background:#E5E5E5; color:#000; } .time.noon{ background:#8ECAE6; color:#000; }
+  .time.off{ background:#FFB703; color:#000; } .time.special{ background:#219EBC; color:#000; }
+  .time.special_small{ font-size:12px; background:#219EBC; color:#000; }
 
-  /* 출근/상태 바 */
-  .time{
-    position:absolute;bottom:0;left:0;width:100%;height:22px;line-height:22px;
-    text-align:center;font-size:13px;font-weight:600;border-radius:0;
-  }
-  .time.sevenEight{ background:#E5E5E5; color:#000; }
-  .time.noon{ background:#FFB703; color:#000; }
-  .time.off{ background:#8ECAE6; color:#000; }
-  .time.special{ background:#8ECAE6; color:#000; }
-  .time.special_small{ font-size:12px; background:#8ECAE6; color:#000; }
-
-  /* 모달 */
   #modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;align-items:flex-end}
   #modal.show{display:flex;}
   .sheet{width:100%;max-width:740px;margin:0 auto;background:#fff;border-top-left-radius:16px;border-top-right-radius:16px;padding:16px;box-shadow:0 -6px 20px rgba(0,0,0,.15)}
   .sheet h3{margin:0 0 10px 0;font-size:16px}
   .controls{display:flex;gap:8px;margin-top:12px}
   select{width:100%;height:44px;border:1px solid var(--border);border-radius:10px;padding:0 10px;font-size:16px;background:#fff}
+
+  .wxcell{ position:absolute; right:2px; top:6px; font-size:14px; line-height:1; user-select:none; pointer-events:none; z-index:2; }
+
+  /* ===== 시간대별 날씨 ===== */
+  .hourly-card{ margin-top:12px;background:var(--card);border:1px solid var(--border);
+    border-radius:16px;box-shadow:0 4px 10px rgba(0,0,0,.04);padding:12px 12px 6px 12px; }
+  .hourly-title{ font-weight:800;font-size:15px;margin:2px 2px 8px 2px; }
+  .hourly-ref{ margin-left:6px; font-weight:600; color:var(--sub); font-size:12px; }
+  .hourly-divider{ height:1px;background:var(--border);margin:0 0 8px 0; }
+  .hourly-scroller{ display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;
+    padding:4px 2px 8px 2px;-webkit-overflow-scrolling:touch;scrollbar-width:none; }
+  .hourly-scroller::-webkit-scrollbar{ display:none; }
+  .hour-item{ flex:0 0 66px; scroll-snap-align:start; text-align:center; }
+  .hour-time{ font-size:12px; color:var(--sub); font-weight:700; margin-bottom:4px; }
+  .hour-ico{ font-size:18px; line-height:1; margin:2px 0 4px 0; }
+  .hour-temp{ font-size:14px; font-weight:800; margin:0 0 2px 0; }
+  .hour-pop{ display:flex; align-items:center; justify-content:center; gap:3px; font-size:11px; color:#2563eb; }
+  .drop{ font-size:14px; line-height:1; }
+
+  /* ===== 주간(지역명으로 표시) ===== */
+  .weekly-card{ margin-top:12px;background:var(--card);border:1px solid var(--border);
+    border-radius:16px;box-shadow:0 4px 10px rgba(0,0,0,.04); padding:8px 10px; }
+  .weekly-title{ font-weight:800; font-size:15px; margin:2px 2px 8px 2px; }
+  .weekly-divider{ height:1px;background:var(--border); margin:0 0 6px 0; }
+  .weekly-list{ display:flex; flex-direction:column; }
+  .week-row{ display:flex; align-items:center; justify-content:space-between; padding:6px 4px; border-radius:10px; gap:6px; }
+  .week-left{ display:flex; align-items:center; gap:6px; min-width:120px;}
+  .week-day{ width:80px; font-weight:800; font-size:13px; white-space:nowrap; }
+  .week-pop{ display:flex; align-items:center; gap:3px; color:#2563eb; font-weight:700; font-size:12px;}
+  .week-mid{ display:flex; align-items:center; justify-content:space-evenly; width:64px; min-width:64px; }
+  .week-ico{ display:inline-grid; place-items:center; width:22px; height:22px; font-size:18px; line-height:1; font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",emoji; vertical-align:middle; }
+  .week-right{ font-weight:800; min-width:60px; text-align:right; white-space:nowrap; font-size:13px;}
+  .t-hi{ margin-left:4px; }
+  .t-lo{ opacity:.8; margin-left:2px;}
+  .section-divider{ height:1px;background:var(--border); margin:12px 0 4px 0; border-radius:1px; }
 </style>
 </head>
 <body>
@@ -82,17 +100,41 @@
     <div class="card">
       <div class="topbar">
         <button class="navbtn" id="prevBtn">◀</button>
-        <div class="title"><span id="monthTitle">YYYY. MM.</span></div>
+        <div class="title">
+          <span id="monthTitle">YYYY. MM.</span>
+          <div id="wx" class="wx" aria-label="날씨칩(옵션)"></div>
+        </div>
         <div class="actions">
           <button class="mini" id="sheetLoadBtn">불러오기</button>
           <button class="navbtn" id="nextBtn">▶</button>
         </div>
       </div>
-      <div class="weekday">
-        <div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div>
+
+      <div id="calendarCapture">
+        <div class="weekday">
+          <div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div>
+        </div>
+        <div class="grid" id="grid"></div>
       </div>
-      <div class="grid" id="grid"></div>
     </div>
+
+    <!-- 시간대별 날씨 -->
+    <div id="hourlyCard" class="hourly-card">
+      <div class="hourly-title">
+        시간대별 날씨 <span id="hourlyRef" class="hourly-ref"></span>
+      </div>
+      <div class="hourly-divider"></div>
+      <div id="hourlyScroller" class="hourly-scroller" aria-label="시간대별 날씨 목록"></div>
+    </div>
+
+    <!-- 주간(지역명 표시) -->
+    <div id="weeklyCard" class="weekly-card">
+      <div class="weekly-title" id="weeklyTitle">위치 확인 중…</div>
+      <div class="weekly-divider"></div>
+      <div id="weeklyList" class="weekly-list" aria-label="주간 날씨 목록"></div>
+    </div>
+
+    <div class="section-divider"></div>
   </div>
 
   <!-- 모달 -->
@@ -101,16 +143,11 @@
       <h3 id="modalDate">YYYY-MM-DD 출근/상태</h3>
       <select id="timeSelect">
         <option value="">선택</option>
-        <option value="7시">7시</option>
-        <option value="8시">8시</option>
-        <option value="12시">12시</option>
-        <option value="휴무">휴무</option>
-        <option value="연차">연차</option>
-        <option value="병가">병가</option>
-        <option value="공가">공가</option>
-        <option value="출장">출장</option>
-        <option value="돌봄">돌봄</option>
-        <option value="사가독서">사가독서</option>
+        <option value="7시">7시</option><option value="8시">8시</option>
+        <option value="12시">12시</option><option value="휴무">휴무</option>
+        <option value="연차">연차</option><option value="병가">병가</option>
+        <option value="공가">공가</option><option value="출장">출장</option>
+        <option value="돌봄">돌봄</option><option value="사가독서">사가독서</option>
         <option value="체련대회">체련대회</option>
       </select>
       <div class="controls">
@@ -122,11 +159,26 @@
   </div>
 
 <script>
+  /* ===== 기본 상수 ===== */
   const WEBAPP_URL  = 'https://script.google.com/macros/s/AKfycbwA1CtxLfbziu52wTUa-R4TKrN4NQajVtFKDVwYBFhGalUPU3QcHbK24mueAMkI8DLM/exec';
-  const SERVICE_KEY = 'f3fe3ff25a8fe96c692eacced03e726ebf3443ee7cdd8e50a1d06a1b0d7ee8cf'; // 공휴일 API 키 입력
+  const SERVICE_KEY = 'f3fe3ff25a8fe96c692eacced03e726ebf3443ee7cdd8e50a1d06a1b0d7ee8cf';
   const USE_HOLIDAYS = SERVICE_KEY && SERVICE_KEY.trim().length > 0;
   const SERVICE_KEY_PARAM = encodeURIComponent(SERVICE_KEY);
 
+  const KMA_KEY = SERVICE_KEY, KMA_MID_KEY = SERVICE_KEY;
+  const FALLBACK_LOC = { label:"서울 도봉구", nx:61, ny:129 };
+  const REG_ID = '11B00000';
+  const MID_TA_REG_ID = '11B10101';
+
+  /* ===== 캐시 키/TTL ===== */
+  const GEO_CACHE_KEY = 'geoLabelCacheV1';
+  const VILAGE_CACHE_KEY = 'vilageByDTCacheV1';
+  const MID_WEEK_CACHE_KEY = 'midWeekCacheV1';
+  const MID_TA_CACHE_KEY = 'midTaCacheV1';
+  const VILAGE_TTL = 20*60*1000;
+  const MID_TTL    = 3*60*60*1000;
+
+  /* ===== 엘리먼트 ===== */
   const grid=document.getElementById('grid');
   const monthTitle=document.getElementById('monthTitle');
   const prevBtn=document.getElementById('prevBtn');
@@ -138,58 +190,54 @@
   const saveBtn=document.getElementById('saveBtn');
   const clearBtn=document.getElementById('clearBtn');
   const cancelBtn=document.getElementById('cancelBtn');
+  const weeklyTitle=document.getElementById('weeklyTitle');
 
-  // 마지막 본 달 유지
+  /* ===== 상태 ===== */
   let state=(()=>{try{const s=localStorage.getItem('lastView');if(s){const o=JSON.parse(s);if(o.year&&o.month>=0)return o;}}catch(e){};const n=new Date();return{year:n.getFullYear(),month:n.getMonth()};})();
-  let selectedKey=null; let sheetData={};
-  let holidayMap={};
-  const pad=n=>n.toString().padStart(2,'0');
-  const keyOf=(y,m,d)=>`${y}-${pad(m+1)}-${pad(d)}`;
+  let selectedKey=null; let sheetData={}; let holidayMap={};
 
-  // (보조) month 오프셋 계산
-  function ymAdd(year, month, delta){
-    const d = new Date(year, month + delta, 1);
-    return { y: d.getFullYear(), m: d.getMonth() };
+  /* ===== 유틸 ===== */
+  const pad=n=>n.toString().padStart(2,'0'); const pad2=pad;
+  const keyOf=(y,m,d)=>`${y}-${pad(m+1)}-${pad(d)}`;
+  function localDateStr(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
+  const K_DOW=['일','월','화','수','목','금','토'];
+  function ymAdd(year, month, delta){ const d=new Date(year, month+delta, 1); return {y:d.getFullYear(), m:d.getMonth()}; }
+
+  /* ===== 네트워크 보조(타임아웃) ===== */
+  async function fetchWithTimeout(url, ms, init={}){
+    const ctl = new AbortController();
+    const t = setTimeout(()=>ctl.abort('timeout'), ms);
+    try{ return await fetch(url, {...init, signal:ctl.signal}); }
+    finally{ clearTimeout(t); }
   }
 
-  /* 공휴일 (특정 월) */
+  /* ===== 달력 ===== */
   async function fetchHolidays(year,month){
     if(!USE_HOLIDAYS) return {};
-    const url=`https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo?solYear=${year}&solMonth=${pad(month+1)}&numOfRows=100&_type=json&ServiceKey=${SERVICE_KEY_PARAM}`;
-    const res=await fetch(url); if(!res.ok) return {};
-    const data=await res.json();
-    const items=(((data||{}).response||{}).body||{}).items;
+    const url=`https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo?solYear=${year}&solMonth=${pad(month+1)}&numOfRows=50&_type=json&ServiceKey=${SERVICE_KEY_PARAM}`;
+    const res=await fetchWithTimeout(url, 5000); if(!res.ok) return {};
+    const data=await res.json(); const items=(((data||{}).response||{}).body||{}).items;
     const arr=items&&items.item?(Array.isArray(items.item)?items.item:[items.item]):[];
-    const map={};
-    for(const it of arr){
-      const ymd=String(it.locdate||'');
-      if(/^\d{8}$/.test(ymd)){
-        const k=`${ymd.slice(0,4)}-${ymd.slice(4,6)}-${ymd.slice(6,8)}`;
-        map[k]=it.dateName||'';
-      }
-    }
+    const map={}; for(const it of arr){ const ymd=String(it.locdate||''); if(/^\d{8}$/.test(ymd)){ const k=`${ymd.slice(0,4)}-${ymd.slice(4,6)}-${ymd.slice(6,8)}`; map[k]=it.dateName||''; } }
     return map;
   }
 
-  /* 시트 연동 */
   async function reloadFromSheet(){
-    const res=await fetch(WEBAPP_URL+'?_='+Date.now());const j=await res.json();
-    if(j&&j.ok) sheetData=j.data||{};
+    const res=await fetchWithTimeout(WEBAPP_URL+'?_='+Date.now(), 6000);
+    const j=await res.json(); if(j&&j.ok) sheetData=j.data||{};
   }
   async function saveToSheet(key,value){
     const p=new URLSearchParams();p.set('payload',JSON.stringify({mode:'set',key,value}));
-    await fetch(WEBAPP_URL,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:p.toString()});
+    await fetchWithTimeout(WEBAPP_URL, 6000,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:p.toString()});
   }
   async function deleteFromSheet(key){
     const p=new URLSearchParams();p.set('payload',JSON.stringify({mode:'delete',key}));
-    await fetch(WEBAPP_URL,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:p.toString()});
+    await fetchWithTimeout(WEBAPP_URL, 6000,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:p.toString()});
   }
 
-  /* 캘린더 렌더 (이전/다음달 흐리게 포함) */
   function drawCalendar(){
     const y=state.year,m=state.month;
     monthTitle.textContent=`${y}. ${pad(m+1)}.`;
-
     const firstDay=new Date(y,m,1).getDay();
     const lastDate=new Date(y,m+1,0).getDate();
     const prevLast=new Date(y,m,0).getDate();
@@ -200,126 +248,501 @@
 
     for(let i=0;i<totalCells;i++){
       const cell=document.createElement('div');cell.className='cell';
+      let dNum,cYear,cMonth,isEdge=false;
+      if(i<firstDay){ dNum=prevLast-firstDay+i+1; cYear=(m===0?y-1:y); cMonth=(m===0?11:m-1); isEdge=true; }
+      else if(i>=firstDay+lastDate){ dNum=i-(firstDay+lastDate)+1; cYear=(m===11?y+1:y); cMonth=(m===11?0:m+1); isEdge=true; }
+      else { dNum=i-firstDay+1; cYear=y; cMonth=m; }
 
-      let dNum, cYear, cMonth, isEdge=false;
-      if(i < firstDay){
-        dNum = prevLast - firstDay + i + 1;
-        cYear = (m===0 ? y-1 : y);
-        cMonth = (m===0 ? 11 : m-1);
-        isEdge = true;
-      } else if (i >= firstDay + lastDate) {
-        dNum = i - (firstDay + lastDate) + 1;
-        cYear = (m===11 ? y+1 : y);
-        cMonth = (m===11 ? 0 : m+1);
-        isEdge = true;
-      } else {
-        dNum = i - firstDay + 1;
-        cYear = y; cMonth = m;
-      }
+      const dow=i%7; if(dow===0) cell.classList.add('sun'); if(dow===6) cell.classList.add('sat');
+      const dateEl=document.createElement('div'); dateEl.className='date'; dateEl.textContent=dNum;
+      if(isEdge) cell.classList.add('edge'); cell.appendChild(dateEl);
 
-      const dow = i % 7; // 0=일,6=토
-      if(dow===0) cell.classList.add('sun');
-      if(dow===6) cell.classList.add('sat');
+      const k=keyOf(cYear,cMonth,dNum); cell.dataset.key=k;
 
-      const dateEl=document.createElement('div');
-      dateEl.className='date';
-      dateEl.textContent=dNum;
-      if(isEdge) cell.classList.add('edge');
-      cell.appendChild(dateEl);
-
-      const k=keyOf(cYear,cMonth,dNum);
-
-      // 공휴일 이름/색상
       if(holidayMap[k]){
         const b=document.createElement('div'); b.className='holiday-badge'; b.textContent=holidayMap[k];
-        cell.appendChild(b);
-        cell.classList.add('holiday');
-        if(!isEdge) cell.classList.add('sun'); // 이번달 공휴일은 빨강
-        else cell.classList.add('edge','holiday'); // 엣지는 흐린 빨강 (CSS)
+        cell.appendChild(b); cell.classList.add('holiday');
       }
 
-      // 시트 값
       const val=sheetData[k];
       if(val){
         const t=document.createElement('div'); t.className='time'; t.textContent=val;
         if(val==='7시'||val==='8시') t.classList.add('sevenEight');
-        else if(val==='12시')        t.classList.add('noon');
-        else if(val==='휴무')        t.classList.add('off');
+        else if(val==='12시') t.classList.add('noon');
+        else if(val==='휴무') t.classList.add('off');
         else if(['연차','병가','공가','출장','돌봄'].includes(val)) t.classList.add('special');
-        else if(['사가독서','체련대회'].includes(val))             t.classList.add('special_small');
-        if(isEdge) t.style.opacity = .55;
-        cell.appendChild(t);
+        else if(['사가독서','체련대회'].includes(val)) t.classList.add('special_small');
+        if(isEdge) t.style.opacity=.55; cell.appendChild(t);
       }
 
-      // 오늘은 이번달일 때만
       if(!isEdge && today.getFullYear()===cYear && today.getMonth()===cMonth && today.getDate()===dNum){
-        cell.classList.add('today');
-        if(dow===0) cell.classList.add('sun');
-        if(dow===6) cell.classList.add('sat');
+        cell.classList.add('today'); if(dow===0) cell.classList.add('sun'); if(dow===6) cell.classList.add('sat');
       }
 
-      // 입력
-      cell.addEventListener('click',()=>openModal(k,val||''));
-      grid.appendChild(cell);
+      cell.addEventListener('click',()=>openModal(k,val||'')); grid.appendChild(cell);
     }
   }
 
-  /* 렌더: 현재달 + 이전달 + 다음달 공휴일을 합쳐서 적용 */
+  function updateHourlyHeaderAndVisibility(){
+    const card = document.getElementById('hourlyCard');
+    const weekly = document.getElementById('weeklyCard');
+    const ref  = document.getElementById('hourlyRef');
+    const today = new Date();
+    ref.textContent = `(기준일자: ${today.getMonth()+1}월 ${today.getDate()}일)`;
+    const isThisMonth = (state.year === today.getFullYear() && state.month === today.getMonth());
+    card.style.display = isThisMonth ? '' : 'none';
+    weekly.style.display = isThisMonth ? '' : 'none';
+    return isThisMonth;
+  }
+
   function render(){
     drawCalendar();
     localStorage.setItem('lastView', JSON.stringify(state));
-
     (async ()=>{
       try{
-        const { y:py, m:pm } = ymAdd(state.year, state.month, -1);
-        const { y:ny, m:nm } = ymAdd(state.year, state.month,  1);
-        const [prevMap, currMap, nextMap] = await Promise.all([
-          fetchHolidays(py, pm),
-          fetchHolidays(state.year, state.month),
-          fetchHolidays(ny, nm),
+        const { y:py, m:pm }=ymAdd(state.year,state.month,-1);
+        const { y:ny, m:nm }=ymAdd(state.year,state.month, 1);
+        const [prevMap,currMap,nextMap]=await Promise.all([
+          fetchHolidays(py,pm), fetchHolidays(state.year,state.month), fetchHolidays(ny,nm)
         ]);
-        holidayMap = Object.assign({}, prevMap, currMap, nextMap);
-      }catch(e){
-        holidayMap = {};
+        holidayMap=Object.assign({},prevMap,currMap,nextMap);
+      }catch(e){ holidayMap={}; }
+      drawCalendar();
+      ensureWeatherFresh();
+
+      const show = updateHourlyHeaderAndVisibility();
+      await updateWeatherWeek();
+      if (show){
+        await updateHourlyWeather();
+        await updateWeeklyWeather();
       }
-      drawCalendar(); // 공휴일 반영해서 다시 그림 (엣지 포함)
     })();
   }
 
-  /* 모달 */
   function openModal(key,value){selectedKey=key;modalDate.textContent=key+' 출근/상태';timeSelect.value=value||'';modal.classList.add('show');}
   function closeModal(){modal.classList.remove('show');}
-  saveBtn.addEventListener('click',async()=>{if(!selectedKey)return;await saveToSheet(selectedKey,timeSelect.value);sheetData[selectedKey]=timeSelect.value;drawCalendar();closeModal();});
-  clearBtn.addEventListener('click',async()=>{if(!selectedKey)return;await deleteFromSheet(selectedKey);delete sheetData[selectedKey];drawCalendar();closeModal();});
+  saveBtn.addEventListener('click',async()=>{if(!selectedKey)return;await saveToSheet(selectedKey,timeSelect.value);sheetData[selectedKey]=timeSelect.value;drawCalendar();await applyWeatherIcons();closeModal();});
+  clearBtn.addEventListener('click',async()=>{if(!selectedKey)return;await deleteFromSheet(selectedKey);delete sheetData[selectedKey];drawCalendar();await applyWeatherIcons();closeModal();});
   cancelBtn.addEventListener('click',closeModal);
   modal.addEventListener('click',e=>{if(e.target===modal)closeModal();});
 
-  // 버튼 네비
   prevBtn.addEventListener('click',()=>{state.month--;if(state.month<0){state.month=11;state.year--;}render();});
   nextBtn.addEventListener('click',()=>{state.month++;if(state.month>11){state.month=0;state.year++;}render();});
-  sheetLoadBtn.addEventListener('click',async()=>{await reloadFromSheet();drawCalendar();alert('불러오기 성공');});
+  sheetLoadBtn.addEventListener('click',async()=>{
+    await reloadFromSheet();drawCalendar();await applyWeatherIcons();
+    if (updateHourlyHeaderAndVisibility()){ await updateHourlyWeather(); await updateWeeklyWeather(); }
+    alert('불러오기 성공');
+  });
 
-  // 스와이프
-  let touchStartX=0, touchEndX=0, touchStartY=0, touchEndY=0;
-  const SWIPE_THRESHOLD = 50, VERTICAL_TOLERANCE = 40;
-  grid.addEventListener('touchstart', e=>{
-    touchStartX = e.changedTouches[0].screenX;
-    touchStartY = e.changedTouches[0].screenY;
-  }, {passive:true});
+  /* 스와이프 */
+  let touchStartX=0,touchEndX=0,touchStartY=0,touchEndY=0;
+  const SWIPE_THRESHOLD=50,VERTICAL_TOLERANCE=40;
+  grid.addEventListener('touchstart', e=>{touchStartX=e.changedTouches[0].screenX;touchStartY=e.changedTouches[0].screenY;},{passive:true});
   grid.addEventListener('touchend', e=>{
-    touchEndX = e.changedTouches[0].screenX;
-    touchEndY = e.changedTouches[0].screenY;
-    const dx = touchEndX - touchStartX;
-    const dy = touchEndY - touchStartY;
-    if (Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dy) < VERTICAL_TOLERANCE){
-      if (dx < 0){ state.month++; if(state.month>11){state.month=0;state.year++;} }
+    touchEndX=e.changedTouches[0].screenX;touchEndY=e.changedTouches[0].screenY;
+    const dx=touchEndX-touchStartX, dy=touchEndY-touchStartY;
+    if(Math.abs(dx)>SWIPE_THRESHOLD && Math.abs(dy)<VERTICAL_TOLERANCE){
+      if(dx<0){ state.month++; if(state.month>11){state.month=0;state.year++;} }
       else { state.month--; if(state.month<0){state.month=11;state.year--;} }
       render();
     }
-  }, {passive:true});
+  },{passive:true});
 
-  // 시작
-  (async()=>{await reloadFromSheet();render();})();
+  /* ===== 좌표 변환 ===== */
+  function dfs_xy_conv(lon, lat){
+    const RE=6371.00877, GRID=5.0, SLAT1=30.0, SLAT2=60.0, OLON=126.0, OLAT=38.0, XO=43, YO=136;
+    const DEGRAD=Math.PI/180.0; const re=RE/GRID; const slat1=SLAT1*DEGRAD, slat2=SLAT2*DEGRAD, olon=OLON*DEGRAD, olat=OLAT*DEGRAD;
+    let sn=Math.tan(Math.PI*0.25+slat2*0.5)/Math.tan(Math.PI*0.25+slat1*0.5);
+    sn=Math.log(Math.cos(slat1)/Math.cos(slat2))/Math.log(sn);
+    let sf=Math.tan(Math.PI*0.25+slat1*0.5); sf=Math.pow(sf,sn)*Math.cos(slat1)/sn;
+    let ro=Math.tan(Math.PI*0.25+olat*0.5); ro=re*sf/Math.pow(ro,sn);
+    let ra=Math.tan(Math.PI*0.25+lat*DEGRAD*0.5); ra=re*sf/Math.pow(ra,sn);
+    let theta=lon*DEGRAD-olon; if(theta>Math.PI)theta-=2*Math.PI; if(theta<-Math.PI)theta+=2*Math.PI; theta*=sn;
+    const x=Math.floor(ra*Math.sin(theta)+XO+0.5); const y=Math.floor(ro-ra*Math.cos(theta)+YO+0.5);
+    return {nx:x, ny:y};
+  }
+
+  /* ===== 아이콘 ===== */
+  function iconFromShort(pty, sky){
+    if (pty && pty!=="0") { if(pty==="1") return "🌧️"; if(pty==="2") return "🌦️"; if(pty==="3") return "❄️"; if(pty==="5") return "🌦️"; if(pty==="6"||pty==="7") return "🌨️"; return "🌧️"; }
+    else { if(sky==="1") return "☀️"; if(sky==="3") return "⛅"; if(sky==="4") return "☁️"; return "☀️"; }
+  }
+  function iconFromShortDiel(pty, sky, hour){
+    if (pty && pty!=="0") { if(pty==="1") return "🌧️"; if(pty==="2") return "🌦️"; if(pty==="3") return "❄️"; if(pty==="5") return "🌦️"; if(pty==="6"||pty==="7") return "🌨️"; return "🌧️"; }
+    const h = Number(hour); const night=(h>=19||h<=5);
+    if(night){ if(sky==="4") return "☁️"; return "🌙"; }
+    if(sky==="1") return "☀️"; if(sky==="3") return "⛅"; if(sky==="4") return "☁️"; return "☀️";
+  }
+  function iconFromMid(wf){
+    const t=String(wf||'').replace(/\s/g,'');
+    if(/비\/눈|눈\/비/.test(t)) return "🌧️❄️"; if(/천둥|번개/.test(t)) return "⛈️"; if(/소나기/.test(t)) return "🌦️";
+    if(/눈/.test(t)) return "🌨️"; if(/비/.test(t)) return "🌧️"; if(/흐림/.test(t)) return "☁️"; if(/구름많음/.test(t)) return "⛅"; if(/맑음/.test(t)) return "☀️"; return "☀️";
+  }
+  const nightify = (ico)=> (ico==="☀️"||ico==="⛅") ? "🌙" : ico;
+
+  /* ===== 단기/중기 API 헬퍼 (캐시 포함) ===== */
+  function getBaseDateTimeVilage(){
+    const baseSlots=[2,5,8,11,14,17,20,23];
+    const now=new Date(); const t=new Date(now.getTime()-90*60000);
+    let yyyy=t.getFullYear(), mm=pad2(t.getMonth()+1), dd=pad2(t.getDate());
+    let hh=t.getHours(); let baseH=baseSlots[0];
+    for(const h of baseSlots) if(hh>=h) baseH=h;
+    if(hh<2){ const y=new Date(t.getTime()-24*3600*1000); yyyy=y.getFullYear(); mm=pad2(y.getMonth()+1); dd=pad2(y.getDate()); baseH=23; }
+    return { base_date:`${yyyy}${mm}${dd}`, base_time:`${pad2(baseH)}00` };
+  }
+
+  function cacheGet(boxKey, key, ttl){
+    try{ const raw=localStorage.getItem(boxKey); if(!raw) return null;
+      const box=JSON.parse(raw); const hit=box[key]; if(!hit) return null;
+      if(Date.now()-hit.at > ttl) return null; return hit.data;
+    }catch(e){ return null; }
+  }
+  function cacheSet(boxKey, key, data){
+    try{ const raw=localStorage.getItem(boxKey); const box=raw?JSON.parse(raw):{};
+      box[key]={at:Date.now(), data}; localStorage.setItem(boxKey, JSON.stringify(box));
+    }catch(e){}
+  }
+
+  async function fetchShortAll(nx, ny){
+    const {base_date, base_time}=getBaseDateTimeVilage();
+    const cacheKey=`${nx},${ny}:${base_date}${base_time}`;
+    const hit=cacheGet(VILAGE_CACHE_KEY, cacheKey, VILAGE_TTL);
+    if(hit) return hit;
+
+    const url=`https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst?serviceKey=${KMA_KEY}&pageNo=1&numOfRows=360&dataType=JSON&base_date=${base_date}&base_time=${base_time}&nx=${nx}&ny=${ny}`;
+    const res=await fetchWithTimeout(url, 6000);
+    const data=await res.json();
+    const items=(((data||{}).response||{}).body||{}).items?.item||[];
+    const byDT={};
+    for(const it of items){
+      const d=it.fcstDate, t=it.fcstTime, cat=it.category, v=it.fcstValue;
+      if(!['TMP','PTY','SKY','POP','TMX','TMN'].includes(cat)) continue;
+      const key=`${d}${t}`; if(!byDT[key]) byDT[key]={}; byDT[key][cat]=v;
+    }
+    cacheSet(VILAGE_CACHE_KEY, cacheKey, byDT);
+    return byDT;
+  }
+
+  function getMidBaseTime(){
+    const now=new Date(); const y=now.getFullYear(), m=pad2(now.getMonth()+1), d=pad2(now.getDate()); const hh=now.getHours();
+    if(hh>=18) return `${y}${m}${d}1800`; if(hh>=6) return `${y}${m}${d}0600`;
+    const yst=new Date(now.getTime()-24*3600*1000); return `${yst.getFullYear()}${pad2(yst.getMonth()+1)}${pad2(yst.getDate())}1800`;
+  }
+
+  async function fetchMidWeek(regId){
+    const tmFc=getMidBaseTime();
+    const key=`${regId}:${tmFc}`;
+    const hit=cacheGet(MID_WEEK_CACHE_KEY, key, MID_TTL);
+    if(hit) return hit;
+
+    const url=`https://apis.data.go.kr/1360000/MidFcstInfoService/getMidLandFcst?serviceKey=${KMA_MID_KEY}&dataType=JSON&tmFc=${tmFc}&regId=${encodeURIComponent(regId)}`;
+    const res=await fetchWithTimeout(url, 6000);
+    const data=await res.json();
+    const it=((((data||{}).response||{}).body||{}).items||{}).item?.[0]||{};
+    const out={};
+    for(let i=3;i<=10;i++){
+      out[i]={ amIcon:iconFromMid(it[`wf${i}Am`]), pmIcon:iconFromMid(it[`wf${i}Pm`]),
+               pop:Math.max(Number(it[`rnSt${i}Am`]||0), Number(it[`rnSt${i}Pm`]||0)) };
+    }
+    cacheSet(MID_WEEK_CACHE_KEY, key, out);
+    return out;
+  }
+  async function fetchMidTemps(regId){
+    const tmFc=getMidBaseTime();
+    const key=`${regId}:${tmFc}`;
+    const hit=cacheGet(MID_TA_CACHE_KEY, key, MID_TTL);
+    if(hit) return hit;
+
+    const url=`https://apis.data.go.kr/1360000/MidFcstInfoService/getMidTa?serviceKey=${KMA_MID_KEY}&dataType=JSON&tmFc=${tmFc}&regId=${encodeURIComponent(regId)}`;
+    const res=await fetchWithTimeout(url, 6000);
+    const data=await res.json();
+    const it=((((data||{}).response||{}).body||{}).items||{}).item?.[0]||{};
+    const out={}; for(let i=3;i<=10;i++){ out[i]={ tmin: it[`taMin${i}`], tmax: it[`taMax${i}`] }; }
+    cacheSet(MID_TA_CACHE_KEY, key, out);
+    return out;
+  }
+
+  /* ===== 데이터 신선도 ===== */
+  const WX_DAY_KEY='wxBaseDay'; let _wx7cache=null;
+  function todayKey(){ return localDateStr(new Date()); }
+  function ensureWeatherFresh(){ const saved=localStorage.getItem(WX_DAY_KEY); const now=todayKey(); if(saved!==now){ _wx7cache=null; localStorage.setItem(WX_DAY_KEY, now);} }
+
+  /* ===== 위치 ===== */
+  async function reverseGeocodeKo(lat, lon){
+    try{
+      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=14&addressdetails=1&accept-language=ko`;
+      const res = await fetchWithTimeout(url, 5000, {headers:{'User-Agent':'calendar-weather-demo'}});
+      const j = await res.json();
+      const a = j.address || {};
+      const wide = a.state || a.region || a.province || a.city || '';
+      const city = a.city || a.town || a.county || a.village || '';
+      const district = a.city_district || a.district || a.suburb || a.county || '';
+      const parts = []; if (wide) parts.push(wide); if (district) parts.push(district); else if (city) parts.push(city);
+      return parts.filter(Boolean).join(' ') || '현재 위치';
+    }catch(e){ return '현재 위치'; }
+  }
+
+  async function getLocationNxNy(){
+    const cached = (()=>{ try{ const s=localStorage.getItem(GEO_CACHE_KEY); if(!s) return null; const o=JSON.parse(s);
+      if(Date.now() - o.ts < 3*60*60*1000 && o.label) return o; }catch(e){} return null; })();
+
+    return new Promise(resolve=>{
+      if(!navigator.geolocation){
+        resolve(cached?{label:cached.label, ...FALLBACK_LOC}:{...FALLBACK_LOC, usedFallback:true});
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(async pos=>{
+        const lat=pos.coords.latitude, lon=pos.coords.longitude;
+        const {nx, ny}=dfs_xy_conv(lon, lat);
+        const firstLabel = cached?.label || FALLBACK_LOC.label;
+        resolve({label:firstLabel, nx, ny, usedFallback:false});
+        (async()=>{
+          const newLabel = await reverseGeocodeKo(lat, lon);
+          weeklyTitle.textContent = newLabel;
+          localStorage.setItem(GEO_CACHE_KEY, JSON.stringify({ts:Date.now(), label:newLabel}));
+        })();
+      }, ()=>{
+        resolve(cached?{label:cached.label, ...FALLBACK_LOC}:{...FALLBACK_LOC, usedFallback:true});
+      }, {enableHighAccuracy:true, timeout:8000, maximumAge:0});
+    });
+  }
+
+  /* ===== 공통 컨텍스트 ===== */
+  let _ctx=null; // {where, byDT, midWeek, midTa}
+  async function getWxContext(){
+    if(_ctx) return _ctx;
+    const where = await getLocationNxNy();
+    const [byDT, midWeek, midTa] = await Promise.allSettled([
+      fetchShortAll(where.nx, where.ny),
+      fetchMidWeek(REG_ID),
+      fetchMidTemps(MID_TA_REG_ID)
+    ]).then(xs=>xs.map(x=>x.status==='fulfilled'?x.value:{}));
+    _ctx = {where, byDT, midWeek, midTa};
+    return _ctx;
+  }
+
+  /* ===== 시간대별(24h) ===== */
+  function formatKoreanHour(hh){
+    const h=Number(hh);
+    return h===0 ? '오전 12시' : (h<12 ? `오전 ${h}시` : (h===12 ? '오후 12시' : `오후 ${h-12}시`));
+  }
+  function buildNext24Keys(startDate){
+    const keys=[]; const d=new Date(startDate);
+    for(let i=1;i<=24;i++){ d.setHours(d.getHours()+1,0,0,0);
+      const key=`${d.getFullYear()}${pad2(d.getMonth()+1)}${pad2(d.getDate())}${pad2(d.getHours())}00`;
+      keys.push(key);
+    }
+    return keys;
+  }
+
+  async function updateHourlyWeather(){
+    const today = new Date();
+    if (!(state.year === today.getFullYear() && state.month === today.getMonth())) return;
+
+    const scroller=document.getElementById('hourlyScroller');
+    scroller.innerHTML='';
+
+    try{
+      const {byDT} = await getWxContext();
+      const keys=buildNext24Keys(new Date());
+      const rows=keys.map(k=>{
+        const v=byDT[k]||{};
+        const hh=k.slice(8,10);
+        const icon=iconFromShortDiel(String(v.PTY??"0"), String(v.SKY??"1"), hh);
+        const tmp=(v.TMP!==undefined)?`${v.TMP}°`:'-';
+        const pop=(v.POP!==undefined)?`${v.POP}%`:'—';
+        return { time:formatKoreanHour(hh), icon, tmp, pop };
+      });
+
+      const frag=document.createDocumentFragment();
+      for(const r of rows){
+        const item=document.createElement('div');
+        item.className='hour-item';
+        item.innerHTML=`
+          <div class="hour-time">${r.time}</div>
+          <div class="hour-ico">${r.icon}</div>
+          <div class="hour-temp">${r.tmp}</div>
+          <div class="hour-pop"><span class="drop">💧</span>${r.pop}</div>
+        `;
+        frag.appendChild(item);
+      }
+      scroller.appendChild(frag);
+    }catch(e){}
+  }
+
+  /* ===== 주간(오늘 포함 7일) ===== */
+  function dateLabel(d){
+    const dow=K_DOW[d.getDay()];
+    const dd=d.getDate();
+    return `${dd}일(${dow})`;
+  }
+  function buildDate24Keys(dateObj){
+    const y = dateObj.getFullYear(), m = pad2(dateObj.getMonth()+1), d = pad2(dateObj.getDate());
+    const keys=[]; for(let h=0;h<24;h++){ keys.push(`${y}${m}${d}${pad2(h)}00`); } return keys;
+  }
+  function pickNearestByHours(byDT, ds, hours){
+    for(const hh of hours){ const v = byDT[`${ds}${hh}00`]; if(v) return {v, hh}; }
+    return {v:null, hh:null};
+  }
+  function dayAggFromShort(byDT, dateObj){
+    const y = dateObj.getFullYear(), m=pad2(dateObj.getMonth()+1), d=pad2(dateObj.getDate());
+    const ds = `${y}${m}${d}`;
+    const temps=[];
+    for(const k of buildDate24Keys(dateObj)){
+      const v=byDT[k];
+      if(v && v.TMP!==undefined) temps.push(Number(v.TMP));
+    }
+    let tmax = temps.length ? Math.max(...temps) : null;
+    let tmin = temps.length ? Math.min(...temps) : null;
+    for(const [k,v] of Object.entries(byDT)){
+      if(k.startsWith(ds)){
+        if(v.TMX!==undefined) tmax = (tmax==null)?Number(v.TMX):Math.max(tmax, Number(v.TMX));
+        if(v.TMN!==undefined) tmin = (tmin==null)?Number(v.TMN):Math.min(tmin, Number(v.TMN));
+      }
+    }
+    const {v:dayV, hh:dayH}   = pickNearestByHours(byDT, ds, ['15','14','16','13','12']);
+    const {v:nightV, hh:nightH}= pickNearestByHours(byDT, ds, ['21','22','20','23','00','01','02','03','04','05']);
+    const dayI   = iconFromShortDiel(String(dayV?.PTY??'0'),   String(dayV?.SKY??'1'),   dayH??15);
+    const nightI = iconFromShortDiel(String(nightV?.PTY??'0'), String(nightV?.SKY??'1'), nightH??21);
+    return {tmax, tmin, pop:0, amIcon:dayI, pmIcon:nightI};
+  }
+
+  /* ★★★ 여기부터가 수정된 부분입니다 ★★★ */
+  async function updateWeeklyWeather(){
+    const today = new Date();
+    if (!(state.year === today.getFullYear() && state.month === today.getMonth())) return;
+
+    const list = document.getElementById('weeklyList');
+    list.innerHTML = '';
+
+    try{
+      const {where, byDT, midWeek, midTa} = await getWxContext();
+      if(where?.label) weeklyTitle.textContent = where.label;
+
+      const rows=[];
+      for(let i=0;i<7;i++){
+        const d=new Date(); d.setDate(d.getDate()+i);
+        const label = dateLabel(d);
+
+        const a = dayAggFromShort(byDT, d);
+
+        // 단기 POP 최대값
+        let popMax = 0;
+        for(const k of buildDate24Keys(d)){ const v=byDT[k]; if(v && v.POP!==undefined) popMax = Math.max(popMax, Number(v.POP)); }
+
+        // ★ 중기 인덱스 보정: i(0~6) -> midIdx(3~9)
+        const midIdx = i + 3;
+        const mt = midTa[midIdx] || {};
+        const mw = midWeek[midIdx] || {};
+
+        // 온도: 단기 -> 중기 -> 인접 중기 보간
+        let hi = (a.tmax!=null)? a.tmax : (mt.tmax!=null?Number(mt.tmax):null);
+        let lo = (a.tmin!=null)? a.tmin : (mt.tmin!=null?Number(mt.tmin):null);
+        if(hi==null || lo==null){
+          const prev = midTa[midIdx-1]||{}, next = midTa[midIdx+1]||{};
+          if(hi==null) hi = (prev.tmax!=null?Number(prev.tmax):(next.tmax!=null?Number(next.tmax):null));
+          if(lo==null) lo = (prev.tmin!=null?Number(prev.tmin):(next.tmin!=null?Number(next.tmin):null));
+        }
+
+        // 아이콘: 0~2일은 단기, 이후는 중기
+        const dayIcon   = (i<=2 ? a.amIcon : (mw.amIcon||'☀️'));
+        const nightIcon = (i<=2 ? a.pmIcon : nightify(mw.pmIcon||'☁️'));
+
+        rows.push({
+          label,
+          pop: popMax + '%',
+          dayIcon, nightIcon,
+          tmax: (hi!=null?`${hi}°`:'-'),
+          tmin: (lo!=null?`${lo}°`:'-')
+        });
+      }
+
+      const frag=document.createDocumentFragment();
+      for(const r of rows){
+        const row=document.createElement('div');
+        row.className='week-row';
+        row.innerHTML = `
+          <div class="week-left">
+            <div class="week-day">${r.label}</div>
+            <div class="week-pop"><span>💧</span><span>${String(r.pop).replace('%','')}%</span></div>
+          </div>
+          <div class="week-mid">
+            <span class="week-ico">${r.dayIcon}</span>
+            <span class="week-ico">${r.nightIcon}</span>
+          </div>
+          <div class="week-right">
+            <span class="t-hi">${r.tmax}</span>
+            <span class="t-lo">${r.tmin}</span>
+          </div>
+        `;
+        frag.appendChild(row);
+      }
+      list.appendChild(frag);
+    }catch(e){}
+  }
+  /* ★★★ 수정 끝 ★★★ */
+
+  /* ===== 캘린더 칸 내 이모지 적용(3일+중기 4일) ===== */
+  const WX_DAY_LABEL_KEY='wxBaseDay'; let _wx7=null;
+  function ensureWeatherFresh(){ const saved=localStorage.getItem(WX_DAY_LABEL_KEY); const now=localDateStr(new Date()); if(saved!==now){ _wx7=null; localStorage.setItem(WX_DAY_LABEL_KEY, now);} }
+  async function updateWeatherWeek(){
+    try{
+      ensureWeatherFresh();
+      if(!_wx7){
+        const {byDT} = await getWxContext();
+        const shortIcons=[];
+        for(let i=0;i<3;i++){
+          const d=new Date(); d.setDate(d.getDate()+i);
+          const ds=localDateStr(d).replace(/-/g,'');
+          const any=Object.entries(byDT).find(([k])=>k.startsWith(ds));
+          let pty="0", sky="1"; if(any){ const v=any[1]; if(v?.PTY) pty=String(v.PTY); if(v?.SKY) sky=String(v.SKY); }
+          shortIcons.push({date:localDateStr(d), icon:iconFromShort(pty, sky)});
+        }
+        const mid4=await fetchMid4(REG_ID);
+        _wx7=[...shortIcons,...mid4];
+      }
+      await applyWeatherIcons();
+    }catch(e){}
+  }
+  async function fetchMid4(regId){
+    const tmFc=getMidBaseTime();
+    const key=`${regId}:${tmFc}:4d`;
+    const hit=cacheGet(MID_WEEK_CACHE_KEY, key, MID_TTL);
+    if(hit) return hit;
+
+    const url=`https://apis.data.go.kr/1360000/MidFcstInfoService/getMidLandFcst?serviceKey=${KMA_MID_KEY}&dataType=JSON&tmFc=${tmFc}&regId=${encodeURIComponent(regId)}`;
+    const res=await fetchWithTimeout(url, 6000);
+    const data=await res.json(); const item=((((data||{}).response||{}).body||{}).items||{}).item?.[0]||{};
+    const out=[]; for(let i=3;i<=6;i++){ const d=new Date(); d.setDate(d.getDate()+i); const ds=localDateStr(d); const pick=item[`wf${i}Pm`]||item[`wf${i}Am`]||''; out.push({date:ds, icon:iconFromMid(pick)}); }
+    cacheSet(MID_WEEK_CACHE_KEY, key, out);
+    return out;
+  }
+  async function applyWeatherIcons(){
+    document.querySelectorAll('.wxcell').forEach(n=>n.remove());
+    if(!_wx7) return;
+    for(const entry of _wx7){
+      const cell=grid.querySelector(`.cell[data-key="${entry.date}"]`);
+      if(!cell) continue;
+      const span=document.createElement('span'); span.className='wxcell'; span.textContent=entry.icon; cell.appendChild(span);
+    }
+  }
+
+  /* ===== 가시성/주기 갱신 ===== */
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      ensureWeatherFresh();
+      const show = updateHourlyHeaderAndVisibility();
+      updateWeatherWeek();
+      if (show){ updateHourlyWeather(); updateWeeklyWeather(); }
+    }
+  });
+  setInterval(()=>{ ensureWeatherFresh();
+    const show = updateHourlyHeaderAndVisibility();
+    updateWeatherWeek();
+    if (show){ updateHourlyWeather(); updateWeeklyWeather(); }
+  }, 10*60*1000);
+
+  (async()=>{ ensureWeatherFresh(); await reloadFromSheet(); render(); })();
 </script>
 </body>
 </html>
