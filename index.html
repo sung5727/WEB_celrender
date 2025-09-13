@@ -93,6 +93,25 @@
   .t-hi{ margin-left:4px; }
   .t-lo{ opacity:.8; margin-left:2px;}
   .section-divider{ height:1px;background:var(--border); margin:12px 0 4px 0; border-radius:1px; }
+
+  /* ====== ▼▼ 주말/공휴일 날짜색 고정 오버라이드 ▼▼ ====== */
+  /* 공휴일은 언제나 빨강 */
+  .holiday .date { color: var(--red); }
+
+  /* 오늘이라도 주말 색 유지 */
+  .today.sun .date { color: var(--red); }
+  .today.sat .date { color: var(--blue); }
+
+  /* 오늘이 공휴일이면 무조건 빨강 */
+  .today.holiday .date { color: var(--red); }
+
+  /* 전월/익월(엣지)에서도 공휴일은 회색보다 빨강 우선 */
+  .edge.holiday .date { color: var(--red); }
+
+  /* 엣지 + 주말 + 공휴일 케이스도 안전하게 */
+  .edge.sun.holiday .date,
+  .edge.sat.holiday .date { color: var(--red); }
+  /* ====== ▲▲ 오버라이드 끝 ▲▲ ====== */
 </style>
 </head>
 <body>
@@ -322,7 +341,7 @@
   function openModal(key,value){selectedKey=key;modalDate.textContent=key+' 출근/상태';timeSelect.value=value||'';modal.classList.add('show');}
   function closeModal(){modal.classList.remove('show');}
   saveBtn.addEventListener('click',async()=>{if(!selectedKey)return;await saveToSheet(selectedKey,timeSelect.value);sheetData[selectedKey]=timeSelect.value;drawCalendar();await applyWeatherIcons();closeModal();});
-  clearBtn.addEventListener('click',async()=>{if(!selectedKey)return;await deleteFromSheet(selectedKey);delete sheetData[selectedKey];drawCalendar();await applyWeatherIcons();closeModal();});
+  clearBtn.addEventListener('click',async()=>{if(!isSelectedKey)return;await deleteFromSheet(selectedKey);delete sheetData[selectedKey];drawCalendar();await applyWeatherIcons();closeModal();});
   cancelBtn.addEventListener('click',closeModal);
   modal.addEventListener('click',e=>{if(e.target===modal)closeModal();});
 
