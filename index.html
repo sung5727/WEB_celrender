@@ -2,9 +2,24 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>출근캘린더(250906_1956)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>출근캘린더(250916)</title>
 <style>
+  /* ===== safe-area 지원: 앱(WebView) & 브라우저 공통 ===== */
+  :root{
+    --safe-bottom-env: env(safe-area-inset-bottom, 0px);
+    --safe-top-env:    env(safe-area-inset-top, 0px);
+    --safe-bottom-js:  0px; /* 앱에서 JS로 채움 */
+    --safe-top-js:     0px;
+    --safe-bottom:     max(var(--safe-bottom-env), var(--safe-bottom-js));
+    --safe-top:        max(var(--safe-top-env),    var(--safe-top-js));
+  }
+  html, body { min-height: 100%; }
+  body { padding-bottom: var(--safe-bottom); padding-top: var(--safe-top); }
+  #modal { padding-bottom: var(--safe-bottom); }
+  .sheet { padding-bottom: calc(16px + var(--safe-bottom)); margin-bottom: 0; }
+  .fixed-bottom, footer, .action-bar { padding-bottom: var(--safe-bottom); bottom: var(--safe-bottom); }
+
   :root{ --primary:#16a34a; --red:#e11d48; --blue:#2563eb; --text:#222; --sub:#6b7280; --border:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   *{box-sizing:border-box}
   body{ margin:0;background:var(--bg);
@@ -97,22 +112,30 @@
   /* ====== ▼▼ 주말/공휴일 날짜색 고정 오버라이드 ▼▼ ====== */
   /* 공휴일은 언제나 빨강 */
   .holiday .date { color: var(--red); }
-
   /* 오늘이라도 주말 색 유지 */
   .today.sun .date { color: var(--red); }
   .today.sat .date { color: var(--blue); }
-
   /* 오늘이 공휴일이면 무조건 빨강 */
   .today.holiday .date { color: var(--red); }
-
   /* 전월/익월(엣지)에서도 공휴일은 회색보다 빨강 우선 */
   .edge.holiday .date { color: var(--red); }
-
   /* 엣지 + 주말 + 공휴일 케이스도 안전하게 */
   .edge.sun.holiday .date,
   .edge.sat.holiday .date { color: var(--red); }
   /* ====== ▲▲ 오버라이드 끝 ▲▲ ====== */
 </style>
+
+<!-- 앱(WebView)에서 전달하는 실제 인셋(px)을 CSS 변수에 주입 -->
+<script>
+(function () {
+  try {
+    var b = (window.InsetsBridge && window.InsetsBridge.getBottomInsetPx)
+            ? window.InsetsBridge.getBottomInsetPx() : 0;
+    if (b && b < 0) b = 0;
+    document.documentElement.style.setProperty('--safe-bottom-js', b + 'px');
+  } catch (e) { /* 브리지 없으면 env()만 사용 */ }
+})();
+</script>
 </head>
 <body>
   <div class="wrap">
@@ -341,7 +364,8 @@
   function openModal(key,value){selectedKey=key;modalDate.textContent=key+' 출근/상태';timeSelect.value=value||'';modal.classList.add('show');}
   function closeModal(){modal.classList.remove('show');}
   saveBtn.addEventListener('click',async()=>{if(!selectedKey)return;await saveToSheet(selectedKey,timeSelect.value);sheetData[selectedKey]=timeSelect.value;drawCalendar();await applyWeatherIcons();closeModal();});
-  clearBtn.addEventListener('click',async()=>{if(!isSelectedKey)return;await deleteFromSheet(selectedKey);delete sheetData[selectedKey];drawCalendar();await applyWeatherIcons();closeModal();});
+  /* 🔧 오타 수정: isSelectedKey → selectedKey */
+  clearBtn.addEventListener('click',async()=>{if(!selectedKey)return;await deleteFromSheet(selectedKey);delete sheetData[selectedKey];drawCalendar();await applyWeatherIcons();closeModal();});
   cancelBtn.addEventListener('click',closeModal);
   modal.addEventListener('click',e=>{if(e.target===modal)closeModal();});
 
@@ -626,7 +650,6 @@
     return {tmax, tmin, pop:0, amIcon:dayI, pmIcon:nightI};
   }
 
-  /* ★★★ 여기부터가 수정된 부분입니다 ★★★ */
   async function updateWeeklyWeather(){
     const today = new Date();
     if (!(state.year === today.getFullYear() && state.month === today.getMonth())) return;
@@ -649,12 +672,10 @@
         let popMax = 0;
         for(const k of buildDate24Keys(d)){ const v=byDT[k]; if(v && v.POP!==undefined) popMax = Math.max(popMax, Number(v.POP)); }
 
-        // ★ 중기 인덱스 보정: i(0~6) -> midIdx(3~9)
         const midIdx = i + 3;
         const mt = midTa[midIdx] || {};
         const mw = midWeek[midIdx] || {};
 
-        // 온도: 단기 -> 중기 -> 인접 중기 보간
         let hi = (a.tmax!=null)? a.tmax : (mt.tmax!=null?Number(mt.tmax):null);
         let lo = (a.tmin!=null)? a.tmin : (mt.tmin!=null?Number(mt.tmin):null);
         if(hi==null || lo==null){
@@ -663,7 +684,6 @@
           if(lo==null) lo = (prev.tmin!=null?Number(prev.tmin):(next.tmin!=null?Number(next.tmin):null));
         }
 
-        // 아이콘: 0~2일은 단기, 이후는 중기
         const dayIcon   = (i<=2 ? a.amIcon : (mw.amIcon||'☀️'));
         const nightIcon = (i<=2 ? a.pmIcon : nightify(mw.pmIcon||'☁️'));
 
@@ -699,14 +719,13 @@
       list.appendChild(frag);
     }catch(e){}
   }
-  /* ★★★ 수정 끝 ★★★ */
 
   /* ===== 캘린더 칸 내 이모지 적용(3일+중기 4일) ===== */
   const WX_DAY_LABEL_KEY='wxBaseDay'; let _wx7=null;
-  function ensureWeatherFresh(){ const saved=localStorage.getItem(WX_DAY_LABEL_KEY); const now=localDateStr(new Date()); if(saved!==now){ _wx7=null; localStorage.setItem(WX_DAY_LABEL_KEY, now);} }
+  function ensureWeatherFresh2(){ const saved=localStorage.getItem(WX_DAY_LABEL_KEY); const now=localDateStr(new Date()); if(saved!==now){ _wx7=null; localStorage.setItem(WX_DAY_LABEL_KEY, now);} }
   async function updateWeatherWeek(){
     try{
-      ensureWeatherFresh();
+      ensureWeatherFresh2();
       if(!_wx7){
         const {byDT} = await getWxContext();
         const shortIcons=[];
