@@ -16,8 +16,6 @@
   .topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);gap:8px}
   .title{font-weight:700;font-size:20px;display:flex;align-items:center;gap:8px}
   .actions{display:flex;gap:8px}
-  .wx{display:flex;gap:6px;align-items:center;margin-left:8px}
-  .wx-chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:3px 6px;border-radius:999px;background:#eef2f7;border:1px solid #e5e7eb;color:#111}
 
   button{height:40px;border-radius:10px;border:1px solid var(--border);background:#fff;padding:0 14px;font-weight:600;cursor:pointer}
   .primary{background:var(--primary);border-color:var(--primary);color:#fff}
@@ -59,42 +57,11 @@
   .controls{display:flex;gap:8px;margin-top:12px}
   select{width:100%;height:44px;border:1px solid var(--border);border-radius:10px;padding:0 10px;font-size:16px;background:#fff}
 
-  .wxcell{ position:absolute; right:2px; top:6px; font-size:14px; line-height:1; user-select:none; pointer-events:none; z-index:2; }
+  /* 날씨 이모지 위치용 요소(비활성) */
+  /* .wxcell{ position:absolute; right:2px; top:6px; font-size:14px; line-height:1; user-select:none; pointer-events:none; z-index:2; } */
 
-  /* ===== 시간대별/주간 날씨 카드 ===== */
-  /* ▼▼ 화면 비표시: 카드 전체 주석 처리 ▼▼ */
-  /*
-  .hourly-card{ margin-top:12px;background:var(--card);border:1px solid var(--border);
-    border-radius:16px;box-shadow:0 4px 10px rgba(0,0,0,.04);padding:12px 12px 6px 12px; }
-  .hourly-title{ font-weight:800;font-size:15px;margin:2px 2px 8px 2px; }
-  .hourly-ref{ margin-left:6px; font-weight:600; color:var(--sub); font-size:12px; }
-  .hourly-divider{ height:1px;background:var(--border);margin:0 0 8px 0; }
-  .hourly-scroller{ display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;
-    padding:4px 2px 8px 2px;-webkit-overflow-scrolling:touch;scrollbar-width:none; }
-  .hourly-scroller::-webkit-scrollbar{ display:none; }
-  .hour-item{ flex:0 0 66px; scroll-snap-align:start; text-align:center; }
-  .hour-time{ font-size:12px; color:var(--sub); font-weight:700; margin-bottom:4px; }
-  .hour-ico{ font-size:18px; line-height:1; margin:2px 0 4px 0; }
-  .hour-temp{ font-size:14px; font-weight:800; margin:0 0 2px 0; }
-  .hour-pop{ display:flex; align-items:center; justify-content:center; gap:3px; font-size:11px; color:#2563eb; }
-  .drop{ font-size:14px; line-height:1; }
-
-  .weekly-card{ margin-top:12px;background:var(--card);border:1px solid var(--border);
-    border-radius:16px;box-shadow:0 4px 10px rgba(0,0,0,.04); padding:8px 10px; }
-  .weekly-title{ font-weight:800; font-size:15px; margin:2px 2px 8px 2px; }
-  .weekly-divider{ height:1px;background:var(--border); margin:0 0 6px 0; }
-  .weekly-list{ display:flex; flex-direction:column; }
-  .week-row{ display:flex; align-items:center; justify-content:space-between; padding:6px 4px; border-radius:10px; gap:6px; }
-  .week-left{ display:flex; align-items:center; gap:6px; min-width:120px;}
-  .week-day{ width:80px; font-weight:800; font-size:13px; white-space:nowrap; }
-  .week-pop{ display:flex; align-items:center; gap:3px; color:#2563eb; font-weight:700; font-size:12px;}
-  .week-mid{ display:flex; align-items:center; justify-content:space-evenly; width:64px; min-width:64px; }
-  .week-ico{ display:inline-grid; place-items:center; width:22px; height:22px; font-size:18px; line-height:1; font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",emoji; vertical-align:middle; }
-  .week-right{ font-weight:800; min-width:60px; text-align:right; white-space:nowrap; font-size:13px;}
-  .t-hi{ margin-left:4px; }
-  .t-lo{ opacity:.8; margin-left:2px;}
-  */
-  /* ▲▲ 여기까지 카드 스타일 주석 ▲▲ */
+  /* ===== 시간대별/주간 날씨 카드 — 화면 비표시 (이미 주석) ===== */
+  /* ... 기존 주석 유지 ... */
 
   .section-divider{ height:1px;background:var(--border); margin:12px 0 4px 0; border-radius:1px; }
 </style>
@@ -106,7 +73,8 @@
         <button class="navbtn" id="prevBtn">◀</button>
         <div class="title">
           <span id="monthTitle">YYYY. MM.</span>
-          <div id="wx" class="wx" aria-label="날씨칩(옵션)"></div>
+          <!-- 날씨칩/위치표시 비활성 -->
+          <!-- <div id="wx" class="wx" aria-label="날씨칩(옵션)"></div> -->
         </div>
         <div class="actions">
           <button class="mini" id="sheetLoadBtn">불러오기</button>
@@ -121,26 +89,6 @@
         <div class="grid" id="grid"></div>
       </div>
     </div>
-
-    <!-- 시간대별 날씨 카드: 화면 비표시 (주석처리) -->
-    <!--
-    <div id="hourlyCard" class="hourly-card">
-      <div class="hourly-title">
-        시간대별 날씨 <span id="hourlyRef" class="hourly-ref"></span>
-      </div>
-      <div class="hourly-divider"></div>
-      <div id="hourlyScroller" class="hourly-scroller" aria-label="시간대별 날씨 목록"></div>
-    </div>
-    -->
-
-    <!-- 주간 날씨 카드: 화면 비표시 (주석처리) -->
-    <!--
-    <div id="weeklyCard" class="weekly-card">
-      <div class="weekly-title" id="weeklyTitle">위치 확인 중…</div>
-      <div class="weekly-divider"></div>
-      <div id="weeklyList" class="weekly-list" aria-label="주간 날씨 목록"></div>
-    </div>
-    -->
 
     <div class="section-divider"></div>
   </div>
@@ -167,23 +115,11 @@
   </div>
 
 <script>
-  /* ===== 기본 상수/상태/유틸/네트워크 보조 — 기존 그대로 ===== */
+  /* ===== 기본 상수/상태/유틸/네트워크 보조 ===== */
   const WEBAPP_URL  = 'https://script.google.com/macros/s/AKfycbwA1CtxLfbziu52wTUa-R4TKrN4NQajVtFKDVwYBFhGalUPU3QcHbK24mueAMkI8DLM/exec';
   const SERVICE_KEY = 'f3fe3ff25a8fe96c692eacced03e726ebf3443ee7cdd8e50a1d06a1b0d7ee8cf';
   const USE_HOLIDAYS = SERVICE_KEY && SERVICE_KEY.trim().length > 0;
   const SERVICE_KEY_PARAM = encodeURIComponent(SERVICE_KEY);
-
-  const KMA_KEY = SERVICE_KEY, KMA_MID_KEY = SERVICE_KEY;
-  const FALLBACK_LOC = { label:"서울 도봉구", nx:61, ny:129 };
-  const REG_ID = '11B00000';
-  const MID_TA_REG_ID = '11B10101';
-
-  const GEO_CACHE_KEY = 'geoLabelCacheV1';
-  const VILAGE_CACHE_KEY = 'vilageByDTCacheV1';
-  const MID_WEEK_CACHE_KEY = 'midWeekCacheV1';
-  const MID_TA_CACHE_KEY = 'midTaCacheV1';
-  const VILAGE_TTL = 20*60*1000;
-  const MID_TTL    = 3*60*60*1000;
 
   const grid=document.getElementById('grid');
   const monthTitle=document.getElementById('monthTitle');
@@ -197,16 +133,12 @@
   const clearBtn=document.getElementById('clearBtn');
   const cancelBtn=document.getElementById('cancelBtn');
 
-  /* 참고: weeklyTitle 요소는 주석 처리되어 있으므로 선택하지 않음 */
-  // const weeklyTitle=document.getElementById('weeklyTitle');
-
   let state=(()=>{try{const s=localStorage.getItem('lastView');if(s){const o=JSON.parse(s);if(o.year&&o.month>=0)return o;}}catch(e){};const n=new Date();return{year:n.getFullYear(),month:n.getMonth()};})();
   let selectedKey=null; let sheetData={}; let holidayMap={};
 
   const pad=n=>n.toString().padStart(2,'0'); const pad2=pad;
   const keyOf=(y,m,d)=>`${y}-${pad(m+1)}-${pad(d)}`;
   function localDateStr(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
-  const K_DOW=['일','월','화','수','목','금','토'];
   function ymAdd(year, month, delta){ const d=new Date(year, month+delta, 1); return {y:d.getFullYear(), m:d.getMonth()}; }
 
   async function fetchWithTimeout(url, ms, init={}){
@@ -216,7 +148,7 @@
     finally{ clearTimeout(t); }
   }
 
-  /* ===== 달력/공휴일 — 기존 그대로 ===== */
+  /* ===== 공휴일 ===== */
   async function fetchHolidays(year,month){
     if(!USE_HOLIDAYS) return {};
     const url=`https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo?solYear=${year}&solMonth=${pad(month+1)}&numOfRows=50&_type=json&ServiceKey=${SERVICE_KEY_PARAM}`;
@@ -227,6 +159,7 @@
     return map;
   }
 
+  /* ===== 시트 저장/불러오기 ===== */
   async function reloadFromSheet(){
     const res=await fetchWithTimeout(WEBAPP_URL+'?_='+Date.now(), 6000);
     const j=await res.json(); if(j&&j.ok) sheetData=j.data||{};
@@ -240,6 +173,7 @@
     await fetchWithTimeout(WEBAPP_URL, 6000,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:p.toString()});
   }
 
+  /* ===== 달력 그리기 ===== */
   function drawCalendar(){
     const y=state.year,m=state.month;
     monthTitle.textContent=`${y}. ${pad(m+1)}.`;
@@ -288,247 +222,31 @@
     }
   }
 
-  /* ===== 위치/날씨 공통 컨텍스트 — 제목 업데이트 라인만 주석 ===== */
-  function localDateStr2(d){ return localDateStr(d); } // (기존 함수 재사용)
-  async function reverseGeocodeKo(lat, lon){
-    try{
-      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=14&addressdetails=1&accept-language=ko`;
-      const res = await fetchWithTimeout(url, 5000, {headers:{'User-Agent':'calendar-weather-demo'}});
-      const j = await res.json();
-      const a = j.address || {};
-      const wide = a.state || a.region || a.province || a.city || '';
-      const city = a.city || a.town || a.county || a.village || '';
-      const district = a.city_district || a.district || a.suburb || a.county || '';
-      const parts = []; if (wide) parts.push(wide); if (district) parts.push(district); else if (city) parts.push(city);
-      const label = parts.filter(Boolean).join(' ') || '현재 위치';
-      // 주간 카드가 비활성이라 제목 업데이트도 비활성
-      // if (weeklyTitle) weeklyTitle.textContent = label;
-      return label;
-    }catch(e){ return '현재 위치'; }
-  }
+  /* ===== 날씨/위치 관련 코드 전부 비활성 =====
+     - 역지오코딩, 좌표변환, 기상청 API 호출, 캐시, 주/시간대 날씨,
+       캘린더 셀 이모지 적용, 주기 갱신 등 호출부까지 주석 처리.
+  ================================================================== */
+  /*
+  // (모든 날씨 상수/함수/주기 타이머 등 전체 주석)
+  */
 
-  function dfs_xy_conv(lon, lat){
-    const RE=6371.00877, GRID=5.0, SLAT1=30.0, SLAT2=60.0, OLON=126.0, OLAT=38.0, XO=43, YO=136;
-    const DEGRAD=Math.PI/180.0; const re=RE/GRID; const slat1=SLAT1*DEGRAD, slat2=SLAT2*DEGRAD, olon=OLON*DEGRAD, olat=OLAT*DEGRAD;
-    let sn=Math.tan(Math.PI*0.25+slat2*0.5)/Math.tan(Math.PI*0.25+slat1*0.5);
-    sn=Math.log(Math.cos(slat1)/Math.cos(slat2))/Math.log(sn);
-    let sf=Math.tan(Math.PI*0.25+slat1*0.5); sf=Math.pow(sf,sn)*Math.cos(slat1)/sn;
-    let ro=Math.tan(Math.PI*0.25+olat*0.5); ro=re*sf/Math.pow(ro,sn);
-    let ra=Math.tan(Math.PI*0.25+lat*DEGRAD*0.5); ra=re*sf/Math.pow(ra,sn);
-    let theta=lon*DEGRAD-olon; if(theta>Math.PI)theta-=2*Math.PI; if(theta<-Math.PI)theta+=2*Math.PI; theta*=sn;
-    const x=Math.floor(ra*Math.sin(theta)+XO+0.5); const y=Math.floor(ro-ra*Math.cos(theta)+YO+0.5);
-    return {nx:x, ny:y};
-  }
-
-  async function getLocationNxNy(){
-    const cached = (()=>{ try{ const s=localStorage.getItem(GEO_CACHE_KEY); if(!s) return null; const o=JSON.parse(s);
-      if(Date.now() - o.ts < 3*60*60*1000 && o.label) return o; }catch(e){} return null; })();
-
-    return new Promise(resolve=>{
-      if(!navigator.geolocation){
-        resolve(cached?{label:cached.label, ...FALLBACK_LOC}:{...FALLBACK_LOC, usedFallback:true});
-        return;
-      }
-      navigator.geolocation.getCurrentPosition(async pos=>{
-        const lat=pos.coords.latitude, lon=pos.coords.longitude;
-        const {nx, ny}=dfs_xy_conv(lon, lat);
-        const firstLabel = cached?.label || FALLBACK_LOC.label;
-        resolve({label:firstLabel, nx, ny, usedFallback:false});
-        (async()=>{
-          const newLabel = await reverseGeocodeKo(lat, lon);
-          localStorage.setItem(GEO_CACHE_KEY, JSON.stringify({ts:Date.now(), label:newLabel}));
-        })();
-      }, ()=>{
-        resolve(cached?{label:cached.label, ...FALLBACK_LOC}:{...FALLBACK_LOC, usedFallback:true});
-      }, {enableHighAccuracy:true, timeout:8000, maximumAge:0});
-    });
-  }
-
-  /* ===== 단기/중기 API/아이콘 — 기존 그대로 ===== */
-  function iconFromShort(pty, sky){
-    if (pty && pty!=="0") { if(pty==="1") return "🌧️"; if(pty==="2") return "🌦️"; if(pty==="3") return "❄️"; if(pty==="5") return "🌦️"; if(pty==="6"||pty==="7") return "🌨️"; return "🌧️"; }
-    else { if(sky==="1") return "☀️"; if(sky==="3") return "⛅"; if(sky==="4") return "☁️"; return "☀️"; }
-  }
-  function iconFromShortDiel(pty, sky, hour){
-    if (pty && pty!=="0") { if(pty==="1") return "🌧️"; if(pty==="2") return "🌦️"; if(pty==="3") return "❄️"; if(pty==="5") return "🌦️"; if(pty==="6"||pty==="7") return "🌨️"; return "🌧️"; }
-    const h = Number(hour); const night=(h>=19||h<=5);
-    if(night){ if(sky==="4") return "☁️"; return "🌙"; }
-    if(sky==="1") return "☀️"; if(sky==="3") return "⛅"; if(sky==="4") return "☁️"; return "☀️";
-  }
-  function iconFromMid(wf){
-    const t=String(wf||'').replace(/\s/g,'');
-    if(/비\/눈|눈\/비/.test(t)) return "🌧️❄️"; if(/천둥|번개/.test(t)) return "⛈️"; if(/소나기/.test(t)) return "🌦️";
-    if(/눈/.test(t)) return "🌨️"; if(/비/.test(t)) return "🌧️"; if(/흐림/.test(t)) return "☁️"; if(/구름많음/.test(t)) return "⛅"; if(/맑음/.test(t)) return "☀️"; return "☀️";
-  }
-  const nightify = (ico)=> (ico==="☀️"||ico==="⛅") ? "🌙" : ico;
-
-  function getBaseDateTimeVilage(){
-    const baseSlots=[2,5,8,11,14,17,20,23];
-    const now=new Date(); const t=new Date(now.getTime()-90*60000);
-    let yyyy=t.getFullYear(), mm=pad2(t.getMonth()+1), dd=pad2(t.getDate());
-    let hh=t.getHours(); let baseH=baseSlots[0];
-    for(const h of baseSlots) if(hh>=h) baseH=h;
-    if(hh<2){ const y=new Date(t.getTime()-24*3600*1000); yyyy=y.getFullYear(); mm=pad2(y.getMonth()+1); dd=pad2(y.getDate()); baseH=23; }
-    return { base_date:`${yyyy}${mm}${dd}`, base_time:`${pad2(baseH)}00` };
-  }
-
-  function cacheGet(boxKey, key, ttl){
-    try{ const raw=localStorage.getItem(boxKey); if(!raw) return null;
-      const box=JSON.parse(raw); const hit=box[key]; if(!hit) return null;
-      if(Date.now()-hit.at > ttl) return null; return hit.data;
-    }catch(e){ return null; }
-  }
-  function cacheSet(boxKey, key, data){
-    try{ const raw=localStorage.getItem(boxKey); const box=raw?JSON.parse(raw):{};
-      box[key]={at:Date.now(), data}; localStorage.setItem(boxKey, JSON.stringify(box));
-    }catch(e){}
-  }
-
-  async function fetchShortAll(nx, ny){
-    const {base_date, base_time}=getBaseDateTimeVilage();
-    const cacheKey=`${nx},${ny}:${base_date}${base_time}`;
-    const hit=cacheGet(VILAGE_CACHE_KEY, cacheKey, VILAGE_TTL);
-    if(hit) return hit;
-
-    const url=`https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst?serviceKey=${KMA_KEY}&pageNo=1&numOfRows=360&dataType=JSON&base_date=${base_date}&base_time=${base_time}&nx=${nx}&ny=${ny}`;
-    const res=await fetchWithTimeout(url, 6000);
-    const data=await res.json();
-    const items=(((data||{}).response||{}).body||{}).items?.item||[];
-    const byDT={};
-    for(const it of items){
-      const d=it.fcstDate, t=it.fcstTime, cat=it.category, v=it.fcstValue;
-      if(!['TMP','PTY','SKY','POP','TMX','TMN'].includes(cat)) continue;
-      const key=`${d}${t}`; if(!byDT[key]) byDT[key]={}; byDT[key][cat]=v;
-    }
-    cacheSet(VILAGE_CACHE_KEY, cacheKey, byDT);
-    return byDT;
-  }
-
-  function getMidBaseTime(){
-    const now=new Date(); const y=now.getFullYear(), m=pad2(now.getMonth()+1), d=pad2(now.getDate()); const hh=now.getHours();
-    if(hh>=18) return `${y}${m}${d}1800`; if(hh>=6) return `${y}${m}${d}0600`;
-    const yst=new Date(now.getTime()-24*3600*1000); return `${yst.getFullYear()}${pad2(yst.getMonth()+1)}${pad2(yst.getDate())}1800`;
-  }
-
-  async function fetchMidWeek(regId){
-    const tmFc=getMidBaseTime();
-    const key=`${regId}:${tmFc}`;
-    const hit=cacheGet(MID_WEEK_CACHE_KEY, key, MID_TTL);
-    if(hit) return hit;
-
-    const url=`https://apis.data.go.kr/1360000/MidFcstInfoService/getMidLandFcst?serviceKey=${KMA_MID_KEY}&dataType=JSON&tmFc=${tmFc}&regId=${encodeURIComponent(regId)}`;
-    const res=await fetchWithTimeout(url, 6000);
-    const data=await res.json();
-    const it=((((data||{}).response||{}).body||{}).items||{}).item?.[0]||{};
-    const out={};
-    for(let i=3;i<=10;i++){
-      out[i]={ amIcon:iconFromMid(it[`wf${i}Am`]), pmIcon:iconFromMid(it[`wf${i}Pm`]),
-               pop:Math.max(Number(it[`rnSt${i}Am`]||0), Number(it[`rnSt${i}Pm`]||0)) };
-    }
-    cacheSet(MID_WEEK_CACHE_KEY, key, out);
-    return out;
-  }
-  async function fetchMidTemps(regId){
-    const tmFc=getMidBaseTime();
-    const key=`${regId}:${tmFc}`;
-    const hit=cacheGet(MID_TA_CACHE_KEY, key, MID_TTL);
-    if(hit) return hit;
-
-    const url=`https://apis.data.go.kr/1360000/MidFcstInfoService/getMidTa?serviceKey=${KMA_MID_KEY}&dataType=JSON&tmFc=${tmFc}&regId=${encodeURIComponent(regId)}`;
-    const res=await fetchWithTimeout(url, 6000);
-    const data=await res.json();
-    const it=((((data||{}).response||{}).body||{}).items||{}).item?.[0]||{};
-    const out={}; for(let i=3;i<=10;i++){ out[i]={ tmin: it[`taMin${i}`], tmax: it[`taMax${i}`] }; }
-    cacheSet(MID_TA_CACHE_KEY, key, out);
-    return out;
-  }
-
-  /* ====== 시간대별/주간 날씨 UI 로직은 화면 비표시로 주석 처리 ====== */
-  // function updateHourlyHeaderAndVisibility(){ ... }  // 사용 안함
-  // async function updateHourlyWeather(){ ... }       // 사용 안함
-  // async function updateWeeklyWeather(){ ... }       // 사용 안함
-
-  /* ====== 캘린더 칸 내 이모지(3일+중기 4일)는 그대로 유지 ====== */
-  const WX_DAY_LABEL_KEY='wxBaseDay'; let _wx7=null;
-  function ensureWeatherFresh(){ const saved=localStorage.getItem(WX_DAY_LABEL_KEY); const now=localDateStr(new Date()); if(saved!==now){ _wx7=null; localStorage.setItem(WX_DAY_LABEL_KEY, now);} }
-
-  function buildDate24Keys(dateObj){
-    const y = dateObj.getFullYear(), m = pad2(dateObj.getMonth()+1), d = pad2(dateObj.getDate());
-    const keys=[]; for(let h=0;h<24;h++){ keys.push(`${y}${m}${d}${pad2(h)}00`); } return keys;
-  }
-
-  async function fetchMid4(regId){
-    const tmFc=getMidBaseTime();
-    const key=`${regId}:${tmFc}:4d`;
-    const hit=cacheGet(MID_WEEK_CACHE_KEY, key, MID_TTL);
-    if(hit) return hit;
-
-    const url=`https://apis.data.go.kr/1360000/MidFcstInfoService/getMidLandFcst?serviceKey=${KMA_MID_KEY}&dataType=JSON&tmFc=${tmFc}&regId=${encodeURIComponent(regId)}`;
-    const res=await fetchWithTimeout(url, 6000);
-    const data=await res.json(); const item=((((data||{}).response||{}).body||{}).items||{}).item?.[0]||{};
-    const out=[]; for(let i=3;i<=6;i++){ const d=new Date(); d.setDate(d.getDate()+i); const ds=localDateStr(d); const pick=item[`wf${i}Pm`]||item[`wf${i}Am`]||''; out.push({date:ds, icon:iconFromMid(pick)}); }
-    cacheSet(MID_WEEK_CACHE_KEY, key, out);
-    return out;
-  }
-
-  async function getWxContext(){
-    if(window._ctx) return window._ctx;
-    const where = await getLocationNxNy();
-    const [byDT] = await Promise.allSettled([
-      getLocationNxNy().then(w=>fetchShortAll(w.nx, w.ny))
-    ]).then(xs=>xs.map(x=>x.status==='fulfilled'?x.value:{}));
-    window._ctx = {where, byDT};
-    return window._ctx;
-  }
-
-  async function updateWeatherWeek(){
-    try{
-      ensureWeatherFresh();
-      if(!_wx7){
-        const {byDT} = await getWxContext();
-        const shortIcons=[];
-        for(let i=0;i<3;i++){
-          const d=new Date(); d.setDate(d.getDate()+i);
-          const ds=localDateStr(d).replace(/-/g,'');
-          const any=Object.entries(byDT).find(([k])=>k.startsWith(ds));
-          let pty="0", sky="1"; if(any){ const v=any[1]; if(v?.PTY) pty=String(v.PTY); if(v?.SKY) sky=String(v.SKY); }
-          shortIcons.push({date:localDateStr(d), icon:iconFromShort(pty, sky)});
-        }
-        const mid4=await fetchMid4(REG_ID);
-        _wx7=[...shortIcons,...mid4];
-      }
-      await applyWeatherIcons();
-    }catch(e){}
-  }
-
-  async function applyWeatherIcons(){
-    document.querySelectorAll('.wxcell').forEach(n=>n.remove());
-    if(!_wx7) return;
-    for(const entry of _wx7){
-      const cell=grid.querySelector(`.cell[data-key="${entry.date}"]`);
-      if(!cell) continue;
-      const span=document.createElement('span'); span.className='wxcell'; span.textContent=entry.icon; cell.appendChild(span);
-    }
-  }
-
-  /* ===== 모달/내비 버튼 — 기존 그대로 ===== */
+  /* ===== 모달/내비 버튼 ===== */
   function openModal(key,value){selectedKey=key;modalDate.textContent=key+' 출근/상태';timeSelect.value=value||'';modal.classList.add('show');}
   function closeModal(){modal.classList.remove('show');}
-  saveBtn.addEventListener('click',async()=>{if(!selectedKey)return;await saveToSheet(selectedKey,timeSelect.value);sheetData[selectedKey]=timeSelect.value;drawCalendar();await applyWeatherIcons();closeModal();});
-  clearBtn.addEventListener('click',async()=>{if(!isSelectedKey)return;await deleteFromSheet(selectedKey);delete sheetData[selectedKey];drawCalendar();await applyWeatherIcons();closeModal();});
+  saveBtn.addEventListener('click',async()=>{if(!selectedKey)return;await saveToSheet(selectedKey,timeSelect.value);sheetData[selectedKey]=timeSelect.value;drawCalendar();closeModal();});
+  clearBtn.addEventListener('click',async()=>{if(!selectedKey)return;await deleteFromSheet(selectedKey);delete sheetData[selectedKey];drawCalendar();closeModal();});
   cancelBtn.addEventListener('click',closeModal);
   modal.addEventListener('click',e=>{if(e.target===modal)closeModal();});
 
   prevBtn.addEventListener('click',()=>{state.month--;if(state.month<0){state.month=11;state.year--;}render();});
   nextBtn.addEventListener('click',()=>{state.month++;if(state.month>11){state.month=0;state.year++;}render();});
   sheetLoadBtn.addEventListener('click',async()=>{
-    await reloadFromSheet();drawCalendar();await applyWeatherIcons();
-    // 시간대별/주간 카드 비활성이라 관련 호출 제거
-    // if (updateHourlyHeaderAndVisibility()){ await updateHourlyWeather(); await updateWeeklyWeather(); }
+    await reloadFromSheet();drawCalendar();
     alert('불러오기 성공');
+    notifyRenderReadyOnce(); // 불러오기 후에도 보장
   });
 
-  /* 스와이프 — 그대로 */
+  /* 스와이프 */
   let touchStartX=0,touchEndX=0,touchStartY=0,touchEndY=0;
   const SWIPE_THRESHOLD=50,VERTICAL_TOLERANCE=40;
   grid.addEventListener('touchstart', e=>{touchStartX=e.changedTouches[0].screenX;touchStartY=e.changedTouches[0].screenY;},{passive:true});
@@ -542,7 +260,7 @@
     }
   },{passive:true});
 
-  /* ===== 렌더/가시성 갱신 — 카드 관련 호출 제거 ===== */
+  /* ===== 렌더 ===== */
   function render(){
     drawCalendar();
     localStorage.setItem('lastView', JSON.stringify(state));
@@ -556,24 +274,24 @@
         holidayMap=Object.assign({},prevMap,currMap,nextMap);
       }catch(e){ holidayMap={}; }
       drawCalendar();
-      ensureWeatherFresh();
-      await updateWeatherWeek(); // 캘린더 이모지만 업데이트
-      // 시간대별/주간 카드 UI 비활성
+
+      // 날씨/위치 업데이트 호출 제거됨
+
+      // DOM 페인트 이후 브리지에 렌더 완료 신호(한 번만)
+      requestAnimationFrame(()=>notifyRenderReadyOnce());
     })();
   }
 
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') {
-      ensureWeatherFresh();
-      updateWeatherWeek(); // 카드 호출 제거
-    }
-  });
-  setInterval(()=>{
-    ensureWeatherFresh();
-    updateWeatherWeek();   // 카드 호출 제거
-  }, 10*60*1000);
+  /* ====== WebView 브리지: 렌더 완료 신호 (이미지 캡처 등 네이티브가 준비되었다고 판단하는 시점) ====== */
+  function notifyRenderReadyOnce(){
+    if (window.__renderReadyFired) return;
+    window.__renderReadyFired = true;
+    if (window.AndroidBridge?.onRenderReady) AndroidBridge.onRenderReady();
+  }
+  // 혹시 모를 경우를 대비해 window load 시점에도 보장
+  window.addEventListener('load', notifyRenderReadyOnce);
 
-  (async()=>{ ensureWeatherFresh(); await reloadFromSheet(); render(); })();
+  (async()=>{ await reloadFromSheet(); render(); })();
 </script>
 </body>
 </html>
