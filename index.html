@@ -35,10 +35,13 @@
 
   .date{ position:absolute; left:8px; top:6px; font-weight:700; line-height:1; z-index:1; }
   .sun .date{color:var(--red)} .sat .date{color:var(--blue)}
+
   .muted{color:#c7cdd7}
   .edge .date{ color:#c7cdd7; } .edge .time{ opacity:.55; }
   .edge.sun .date { color:rgba(225,29,72,0.5); } .edge.sat .date { color:rgba(37,99,235,0.5); }
-  .edge.holiday .date { color:rgba(225,29,72,0.5); } .edge .holiday-badge { opacity:.5; }
+  /* 공휴일 날짜는 빨간색 */
+  .holiday .date { color: var(--red) !important; }
+  .edge.holiday .date { color: rgba(225,29,72,0.5) !important; }
 
   .today {background:#f5f5f5}
   .today .date { color:#000;font-weight:700;text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
@@ -59,9 +62,6 @@
 
   /* 날씨 이모지 위치용 요소(비활성) */
   /* .wxcell{ position:absolute; right:2px; top:6px; font-size:14px; line-height:1; user-select:none; pointer-events:none; z-index:2; } */
-
-  /* ===== 시간대별/주간 날씨 카드 — 화면 비표시 (이미 주석) ===== */
-  /* ... 기존 주석 유지 ... */
 
   .section-divider{ height:1px;background:var(--border); margin:12px 0 4px 0; border-radius:1px; }
 </style>
@@ -115,7 +115,7 @@
   </div>
 
 <script>
-  /* ===== 기본 상수/상태/유틸/네트워크 보조 ===== */
+  /* ===== 기본 상수 ===== */
   const WEBAPP_URL  = 'https://script.google.com/macros/s/AKfycbwA1CtxLfbziu52wTUa-R4TKrN4NQajVtFKDVwYBFhGalUPU3QcHbK24mueAMkI8DLM/exec';
   const SERVICE_KEY = 'f3fe3ff25a8fe96c692eacced03e726ebf3443ee7cdd8e50a1d06a1b0d7ee8cf';
   const USE_HOLIDAYS = SERVICE_KEY && SERVICE_KEY.trim().length > 0;
@@ -138,7 +138,6 @@
 
   const pad=n=>n.toString().padStart(2,'0'); const pad2=pad;
   const keyOf=(y,m,d)=>`${y}-${pad(m+1)}-${pad(d)}`;
-  function localDateStr(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
   function ymAdd(year, month, delta){ const d=new Date(year, month+delta, 1); return {y:d.getFullYear(), m:d.getMonth()}; }
 
   async function fetchWithTimeout(url, ms, init={}){
@@ -152,10 +151,19 @@
   async function fetchHolidays(year,month){
     if(!USE_HOLIDAYS) return {};
     const url=`https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo?solYear=${year}&solMonth=${pad(month+1)}&numOfRows=50&_type=json&ServiceKey=${SERVICE_KEY_PARAM}`;
-    const res=await fetchWithTimeout(url, 5000); if(!res.ok) return {};
-    const data=await res.json(); const items=(((data||{}).response||{}).body||{}).items;
+    const res=await fetchWithTimeout(url, 5000);
+    if(!res.ok) return {};
+    const data=await res.json();
+    const items=(((data||{}).response||{}).body||{}).items;
     const arr=items&&items.item?(Array.isArray(items.item)?items.item:[items.item]):[];
-    const map={}; for(const it of arr){ const ymd=String(it.locdate||''); if(/^\d{8}$/.test(ymd)){ const k=`${ymd.slice(0,4)}-${ymd.slice(4,6)}-${ymd.slice(6,8)}`; map[k]=it.dateName||''; } }
+    const map={};
+    for(const it of arr){
+      const ymd=String(it.locdate||'');
+      if(/^\d{8}$/.test(ymd)){
+        const k=`${ymd.slice(0,4)}-${ymd.slice(4,6)}-${ymd.slice(6,8)}`;
+        map[k]=it.dateName||'';
+      }
+    }
     return map;
   }
 
@@ -222,19 +230,11 @@
     }
   }
 
-  /* ===== 날씨/위치 관련 코드 전부 비활성 =====
-     - 역지오코딩, 좌표변환, 기상청 API 호출, 캐시, 주/시간대 날씨,
-       캘린더 셀 이모지 적용, 주기 갱신 등 호출부까지 주석 처리.
-  ================================================================== */
-  /*
-  // (모든 날씨 상수/함수/주기 타이머 등 전체 주석)
-  */
-
   /* ===== 모달/내비 버튼 ===== */
   function openModal(key,value){selectedKey=key;modalDate.textContent=key+' 출근/상태';timeSelect.value=value||'';modal.classList.add('show');}
   function closeModal(){modal.classList.remove('show');}
-  saveBtn.addEventListener('click',async()=>{if(!selectedKey)return;await saveToSheet(selectedKey,timeSelect.value);sheetData[selectedKey]=timeSelect.value;drawCalendar();closeModal();});
-  clearBtn.addEventListener('click',async()=>{if(!selectedKey)return;await deleteFromSheet(selectedKey);delete sheetData[selectedKey];drawCalendar();closeModal();});
+  saveBtn.addEventListener('click',async()=>{if(!selectedKey)return;await saveToSheet(selectedKey,timeSelect.value);sheetData[selectedKey]=timeSelect.value;drawCalendar();notifyRenderReadyOnce();closeModal();});
+  clearBtn.addEventListener('click',async()=>{if(!selectedKey)return;await deleteFromSheet(selectedKey);delete sheetData[selectedKey];drawCalendar();notifyRenderReadyOnce();closeModal();});
   cancelBtn.addEventListener('click',closeModal);
   modal.addEventListener('click',e=>{if(e.target===modal)closeModal();});
 
@@ -243,7 +243,7 @@
   sheetLoadBtn.addEventListener('click',async()=>{
     await reloadFromSheet();drawCalendar();
     alert('불러오기 성공');
-    notifyRenderReadyOnce(); // 불러오기 후에도 보장
+    notifyRenderReadyOnce();
   });
 
   /* 스와이프 */
@@ -260,37 +260,36 @@
     }
   },{passive:true});
 
-  /* ===== 렌더 ===== */
-  function render(){
-    drawCalendar();
+  /* ===== 렌더: 공휴일 먼저 로드하고 한 번만 그림 ===== */
+  async function render(){
     localStorage.setItem('lastView', JSON.stringify(state));
-    (async ()=>{
-      try{
-        const { y:py, m:pm }=ymAdd(state.year,state.month,-1);
-        const { y:ny, m:nm }=ymAdd(state.year,state.month, 1);
-        const [prevMap,currMap,nextMap]=await Promise.all([
-          fetchHolidays(py,pm), fetchHolidays(state.year,state.month), fetchHolidays(ny,nm)
-        ]);
-        holidayMap=Object.assign({},prevMap,currMap,nextMap);
-      }catch(e){ holidayMap={}; }
-      drawCalendar();
 
-      // 날씨/위치 업데이트 호출 제거됨
+    try{
+      const { y:py, m:pm } = ymAdd(state.year,state.month,-1);
+      const { y:ny, m:nm } = ymAdd(state.year,state.month, 1);
+      const [prevMap,currMap,nextMap]=await Promise.all([
+        fetchHolidays(py,pm), fetchHolidays(state.year,state.month), fetchHolidays(ny,nm)
+      ]);
+      holidayMap = Object.assign({}, prevMap, currMap, nextMap);
+    }catch(e){
+      holidayMap = {};
+    }
 
-      // DOM 페인트 이후 브리지에 렌더 완료 신호(한 번만)
-      requestAnimationFrame(()=>notifyRenderReadyOnce());
-    })();
+    drawCalendar();
+
+    // 렌더 완료 신호(한 번만)
+    requestAnimationFrame(()=>notifyRenderReadyOnce());
   }
 
-  /* ====== WebView 브리지: 렌더 완료 신호 (이미지 캡처 등 네이티브가 준비되었다고 판단하는 시점) ====== */
+  /* ===== WebView 브리지: 렌더 완료 신호(한 번만) ===== */
   function notifyRenderReadyOnce(){
     if (window.__renderReadyFired) return;
     window.__renderReadyFired = true;
     if (window.AndroidBridge?.onRenderReady) AndroidBridge.onRenderReady();
   }
-  // 혹시 모를 경우를 대비해 window load 시점에도 보장
   window.addEventListener('load', notifyRenderReadyOnce);
 
+  /* ===== 초기 부팅 ===== */
   (async()=>{ await reloadFromSheet(); render(); })();
 </script>
 </body>
