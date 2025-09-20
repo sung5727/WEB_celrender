@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>출근캘린더(250906_1956)</title>
+<title>출근캘린더</title>
 <style>
   :root{ --primary:#16a34a; --red:#e11d48; --blue:#2563eb; --text:#222; --sub:#6b7280; --border:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   *{box-sizing:border-box}
@@ -35,18 +35,17 @@
 
   .date{ position:absolute; left:8px; top:6px; font-weight:700; line-height:1; z-index:1; }
   .sun .date{color:var(--red)} .sat .date{color:var(--blue)}
-
   .muted{color:#c7cdd7}
   .edge .date{ color:#c7cdd7; } .edge .time{ opacity:.55; }
-  .edge.sun .date { color:rgba(225,29,72,0.5); } .edge.sat .date { color:rgba(37,99,235,0.5); }
-  /* 공휴일 날짜는 빨간색 */
-  .holiday .date { color: var(--red) !important; }
-  .edge.holiday .date { color: rgba(225,29,72,0.5) !important; }
 
   .today {background:#f5f5f5}
   .today .date { color:#000;font-weight:700;text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 
+  /* 공휴일: 이번달은 진한 빨강, 전월/익월(엣지)은 흐리게 */
+  .holiday .date { color: var(--red); }
+  .edge.holiday .date { color: rgba(225,29,72,0.5); }
   .holiday-badge{ position:absolute;left:8px;top:26px;font-size:10px;color:var(--red);font-weight:700;white-space:nowrap;z-index:1; }
+  .edge .holiday-badge{ color:rgba(225,29,72,0.5); }
 
   .time{ position:absolute;bottom:0;left:0;width:100%;height:22px;line-height:22px;text-align:center;font-size:13px;font-weight:600;border-radius:0; }
   .time.sevenEight{ background:#E5E5E5; color:#000; } .time.noon{ background:#8ECAE6; color:#000; }
@@ -60,9 +59,6 @@
   .controls{display:flex;gap:8px;margin-top:12px}
   select{width:100%;height:44px;border:1px solid var(--border);border-radius:10px;padding:0 10px;font-size:16px;background:#fff}
 
-  /* 날씨 이모지 위치용 요소(비활성) */
-  /* .wxcell{ position:absolute; right:2px; top:6px; font-size:14px; line-height:1; user-select:none; pointer-events:none; z-index:2; } */
-
   .section-divider{ height:1px;background:var(--border); margin:12px 0 4px 0; border-radius:1px; }
 </style>
 </head>
@@ -73,8 +69,6 @@
         <button class="navbtn" id="prevBtn">◀</button>
         <div class="title">
           <span id="monthTitle">YYYY. MM.</span>
-          <!-- 날씨칩/위치표시 비활성 -->
-          <!-- <div id="wx" class="wx" aria-label="날씨칩(옵션)"></div> -->
         </div>
         <div class="actions">
           <button class="mini" id="sheetLoadBtn">불러오기</button>
@@ -89,7 +83,6 @@
         <div class="grid" id="grid"></div>
       </div>
     </div>
-
     <div class="section-divider"></div>
   </div>
 
@@ -121,6 +114,7 @@
   const USE_HOLIDAYS = SERVICE_KEY && SERVICE_KEY.trim().length > 0;
   const SERVICE_KEY_PARAM = encodeURIComponent(SERVICE_KEY);
 
+  /* ===== 엘리먼트 ===== */
   const grid=document.getElementById('grid');
   const monthTitle=document.getElementById('monthTitle');
   const prevBtn=document.getElementById('prevBtn');
@@ -133,13 +127,16 @@
   const clearBtn=document.getElementById('clearBtn');
   const cancelBtn=document.getElementById('cancelBtn');
 
+  /* ===== 상태 ===== */
   let state=(()=>{try{const s=localStorage.getItem('lastView');if(s){const o=JSON.parse(s);if(o.year&&o.month>=0)return o;}}catch(e){};const n=new Date();return{year:n.getFullYear(),month:n.getMonth()};})();
   let selectedKey=null; let sheetData={}; let holidayMap={};
 
-  const pad=n=>n.toString().padStart(2,'0'); const pad2=pad;
+  /* ===== 유틸 ===== */
+  const pad=n=>n.toString().padStart(2,'0');
   const keyOf=(y,m,d)=>`${y}-${pad(m+1)}-${pad(d)}`;
   function ymAdd(year, month, delta){ const d=new Date(year, month+delta, 1); return {y:d.getFullYear(), m:d.getMonth()}; }
 
+  /* ===== 네트워크 보조(타임아웃) ===== */
   async function fetchWithTimeout(url, ms, init={}){
     const ctl = new AbortController();
     const t = setTimeout(()=>ctl.abort('timeout'), ms);
@@ -147,11 +144,29 @@
     finally{ clearTimeout(t); }
   }
 
-  /* ===== 공휴일 ===== */
+  /* ===== 공휴일 캐시 ===== */
+  const HOLI_CACHE_KEY = 'holidayCacheV1'; // { "2025-09": { at:ts, data:{'YYYY-MM-DD':'이름',...} }, ... }
+  const HOLI_TTL = 7*24*60*60*1000; // 7일
+
+  function holiRead(ym){ try{ const raw=localStorage.getItem(HOLI_CACHE_KEY); if(!raw) return null;
+    const box=JSON.parse(raw)||{}; const hit=box[ym]; if(!hit) return null;
+    if(Date.now()-hit.at > HOLI_TTL) return null; return hit.data||null;
+  }catch(e){ return null; } }
+
+  function holiWrite(ym, data){ try{
+    const raw=localStorage.getItem(HOLI_CACHE_KEY); const box=raw?JSON.parse(raw):{};
+    box[ym] = { at: Date.now(), data };
+    localStorage.setItem(HOLI_CACHE_KEY, JSON.stringify(box));
+  }catch(e){} }
+
   async function fetchHolidays(year,month){
     if(!USE_HOLIDAYS) return {};
+    const ym = `${year}-${pad(month+1)}`;
+    const cached = holiRead(ym);
+    if(cached) return cached; // 빠른 경로
+
     const url=`https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo?solYear=${year}&solMonth=${pad(month+1)}&numOfRows=50&_type=json&ServiceKey=${SERVICE_KEY_PARAM}`;
-    const res=await fetchWithTimeout(url, 5000);
+    const res=await fetchWithTimeout(url, 4500); // 약간 단축
     if(!res.ok) return {};
     const data=await res.json();
     const items=(((data||{}).response||{}).body||{}).items;
@@ -164,6 +179,7 @@
         map[k]=it.dateName||'';
       }
     }
+    holiWrite(ym, map);
     return map;
   }
 
@@ -223,73 +239,69 @@
       }
 
       if(!isEdge && today.getFullYear()===cYear && today.getMonth()===cMonth && today.getDate()===dNum){
-        cell.classList.add('today'); if(dow===0) cell.classList.add('sun'); if(dow===6) cell.classList.add('sat');
+        cell.classList.add('today');
       }
 
       cell.addEventListener('click',()=>openModal(k,val||'')); grid.appendChild(cell);
     }
   }
 
-  /* ===== 모달/내비 버튼 ===== */
+  /* ===== 렌더: 캐시 즉시 사용 + 비동기 갱신 ===== */
+  async function render(){
+    // 1) 캐시에 있으면 먼저 반영해서 즉시 그리기
+    const { y:py, m:pm }=ymAdd(state.year,state.month,-1);
+    const { y:ny, m:nm }=ymAdd(state.year,state.month, 1);
+    const c1 = holiRead(`${py}-${pad(pm+1)}`) || {};
+    const c2 = holiRead(`${state.year}-${pad(state.month+1)}`) || {};
+    const c3 = holiRead(`${ny}-${pad(nm+1)}`) || {};
+    holidayMap = Object.assign({}, c1, c2, c3);
+    drawCalendar(); // 즉시 렌더
+
+    // 2) 네트워크로 최신 데이터 받아오고 한 번만 새로 그림
+    try{
+      const [prevMap,currMap,nextMap]=await Promise.all([
+        fetchHolidays(py,pm), fetchHolidays(state.year,state.month), fetchHolidays(ny,nm)
+      ]);
+      const newMap = Object.assign({}, prevMap, currMap, nextMap);
+      const changed = JSON.stringify(newMap) !== JSON.stringify(holidayMap);
+      holidayMap = newMap;
+      if (changed) drawCalendar();
+    }catch(e){}
+  }
+
+  /* ===== 모달 ===== */
   function openModal(key,value){selectedKey=key;modalDate.textContent=key+' 출근/상태';timeSelect.value=value||'';modal.classList.add('show');}
   function closeModal(){modal.classList.remove('show');}
-  saveBtn.addEventListener('click',async()=>{if(!selectedKey)return;await saveToSheet(selectedKey,timeSelect.value);sheetData[selectedKey]=timeSelect.value;drawCalendar();notifyRenderReadyOnce();closeModal();});
-  clearBtn.addEventListener('click',async()=>{if(!selectedKey)return;await deleteFromSheet(selectedKey);delete sheetData[selectedKey];drawCalendar();notifyRenderReadyOnce();closeModal();});
+  saveBtn.addEventListener('click',async()=>{if(!selectedKey)return;await saveToSheet(selectedKey,timeSelect.value);sheetData[selectedKey]=timeSelect.value;drawCalendar();closeModal();});
+  clearBtn.addEventListener('click',async()=>{if(!selectedKey)return;await deleteFromSheet(selectedKey);delete sheetData[selectedKey];drawCalendar();closeModal();});
   cancelBtn.addEventListener('click',closeModal);
   modal.addEventListener('click',e=>{if(e.target===modal)closeModal();});
 
-  prevBtn.addEventListener('click',()=>{state.month--;if(state.month<0){state.month=11;state.year--;}render();});
-  nextBtn.addEventListener('click',()=>{state.month++;if(state.month>11){state.month=0;state.year++;}render();});
-  sheetLoadBtn.addEventListener('click',async()=>{
-    await reloadFromSheet();drawCalendar();
-    alert('불러오기 성공');
-    notifyRenderReadyOnce();
-  });
+  /* ===== 내비 버튼 ===== */
+  prevBtn.addEventListener('click',()=>{state.month--;if(state.month<0){state.month=11;state.year--;}localStorage.setItem('lastView', JSON.stringify(state));render();});
+  nextBtn.addEventListener('click',()=>{state.month++;if(state.month>11){state.month=0;state.year++;}localStorage.setItem('lastView', JSON.stringify(state));render();});
+  sheetLoadBtn.addEventListener('click',async()=>{await reloadFromSheet();drawCalendar();alert('불러오기 성공');});
 
-  /* 스와이프 */
+  /* ===== 스와이프(복원) ===== */
   let touchStartX=0,touchEndX=0,touchStartY=0,touchEndY=0;
-  const SWIPE_THRESHOLD=50,VERTICAL_TOLERANCE=40;
-  grid.addEventListener('touchstart', e=>{touchStartX=e.changedTouches[0].screenX;touchStartY=e.changedTouches[0].screenY;},{passive:true});
+  const SWIPE_THRESHOLD=50, VERTICAL_TOLERANCE=40;
+  grid.addEventListener('touchstart', e=>{
+    touchStartX=e.changedTouches[0].screenX;
+    touchStartY=e.changedTouches[0].screenY;
+  },{passive:true});
   grid.addEventListener('touchend', e=>{
-    touchEndX=e.changedTouches[0].screenX;touchEndY=e.changedTouches[0].screenY;
+    touchEndX=e.changedTouches[0].screenX;
+    touchEndY=e.changedTouches[0].screenY;
     const dx=touchEndX-touchStartX, dy=touchEndY-touchStartY;
     if(Math.abs(dx)>SWIPE_THRESHOLD && Math.abs(dy)<VERTICAL_TOLERANCE){
       if(dx<0){ state.month++; if(state.month>11){state.month=0;state.year++;} }
       else { state.month--; if(state.month<0){state.month=11;state.year--;} }
+      localStorage.setItem('lastView', JSON.stringify(state));
       render();
     }
   },{passive:true});
 
-  /* ===== 렌더: 공휴일 먼저 로드하고 한 번만 그림 ===== */
-  async function render(){
-    localStorage.setItem('lastView', JSON.stringify(state));
-
-    try{
-      const { y:py, m:pm } = ymAdd(state.year,state.month,-1);
-      const { y:ny, m:nm } = ymAdd(state.year,state.month, 1);
-      const [prevMap,currMap,nextMap]=await Promise.all([
-        fetchHolidays(py,pm), fetchHolidays(state.year,state.month), fetchHolidays(ny,nm)
-      ]);
-      holidayMap = Object.assign({}, prevMap, currMap, nextMap);
-    }catch(e){
-      holidayMap = {};
-    }
-
-    drawCalendar();
-
-    // 렌더 완료 신호(한 번만)
-    requestAnimationFrame(()=>notifyRenderReadyOnce());
-  }
-
-  /* ===== WebView 브리지: 렌더 완료 신호(한 번만) ===== */
-  function notifyRenderReadyOnce(){
-    if (window.__renderReadyFired) return;
-    window.__renderReadyFired = true;
-    if (window.AndroidBridge?.onRenderReady) AndroidBridge.onRenderReady();
-  }
-  window.addEventListener('load', notifyRenderReadyOnce);
-
-  /* ===== 초기 부팅 ===== */
+  /* ===== 초기화 ===== */
   (async()=>{ await reloadFromSheet(); render(); })();
 </script>
 </body>
