@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>출근캘린더_앱연동v2(20250921)</title>
+<title>출근캘린더</title>
 <style>
   :root{ --primary:#16a34a; --red:#e11d48; --blue:#2563eb; --text:#222; --sub:#6b7280; --border:#e5e7eb; --bg:#f8fafc; --card:#fff; }
   *{box-sizing:border-box}
@@ -144,8 +144,8 @@
     finally{ clearTimeout(t); }
   }
 
-  /* ===== 공휴일 캐시 ===== */
-  const HOLI_CACHE_KEY = 'holidayCacheV1'; // { "2025-09": { at:ts, data:{'YYYY-MM-DD':'이름',...} }, ... }
+  /* ===== 공휴일 캐시 (localStorage) ===== */
+  const HOLI_CACHE_KEY = 'holidayCacheV1'; // { "YYYY-MM": { at:ts, data:{'YYYY-MM-DD':'이름'} } }
   const HOLI_TTL = 7*24*60*60*1000; // 7일
 
   function holiRead(ym){ try{ const raw=localStorage.getItem(HOLI_CACHE_KEY); if(!raw) return null;
@@ -163,10 +163,10 @@
     if(!USE_HOLIDAYS) return {};
     const ym = `${year}-${pad(month+1)}`;
     const cached = holiRead(ym);
-    if(cached) return cached; // 빠른 경로
+    if(cached) return cached;
 
     const url=`https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo?solYear=${year}&solMonth=${pad(month+1)}&numOfRows=50&_type=json&ServiceKey=${SERVICE_KEY_PARAM}`;
-    const res=await fetchWithTimeout(url, 4500); // 약간 단축
+    const res=await fetchWithTimeout(url, 4500);
     if(!res.ok) return {};
     const data=await res.json();
     const items=(((data||{}).response||{}).body||{}).items;
@@ -248,16 +248,14 @@
 
   /* ===== 렌더: 캐시 즉시 사용 + 비동기 갱신 ===== */
   async function render(){
-    // 1) 캐시에 있으면 먼저 반영해서 즉시 그리기
     const { y:py, m:pm }=ymAdd(state.year,state.month,-1);
     const { y:ny, m:nm }=ymAdd(state.year,state.month, 1);
     const c1 = holiRead(`${py}-${pad(pm+1)}`) || {};
     const c2 = holiRead(`${state.year}-${pad(state.month+1)}`) || {};
     const c3 = holiRead(`${ny}-${pad(nm+1)}`) || {};
     holidayMap = Object.assign({}, c1, c2, c3);
-    drawCalendar(); // 즉시 렌더
+    drawCalendar();
 
-    // 2) 네트워크로 최신 데이터 받아오고 한 번만 새로 그림
     try{
       const [prevMap,currMap,nextMap]=await Promise.all([
         fetchHolidays(py,pm), fetchHolidays(state.year,state.month), fetchHolidays(ny,nm)
@@ -275,15 +273,7 @@
   saveBtn.addEventListener('click',async()=>{if(!selectedKey)return;await saveToSheet(selectedKey,timeSelect.value);sheetData[selectedKey]=timeSelect.value;drawCalendar();closeModal();});
   clearBtn.addEventListener('click',async()=>{if(!selectedKey)return;await deleteFromSheet(selectedKey);delete sheetData[selectedKey];drawCalendar();closeModal();});
   cancelBtn.addEventListener('click',closeModal);
-
-  /* ===== 안드로이드 브릿지 트리거 헬퍼 ===== */ // ★ 추가
-  function notifyCalendarChange(reason){
-    try{
-      if (window.Android && typeof Android.onCalendarChanged === 'function') {
-        Android.onCalendarChanged(String(reason||'changed'));
-      }
-    }catch(e){}
-  }
+  modal.addEventListener('click',e=>{if(e.target===modal)closeModal();});
 
   /* ===== 내비 버튼 ===== */
   prevBtn.addEventListener('click',()=>{state.month--;if(state.month<0){state.month=11;state.year--;}localStorage.setItem('lastView', JSON.stringify(state));render();});
@@ -309,41 +299,55 @@
     }
   },{passive:true});
 
-  /* ===== 자정(today) 롤오버 감지 ===== */ // ★ 추가
-  const todayKeyStr = () => {
-    const n=new Date();
-    const y=n.getFullYear(), m=String(n.getMonth()+1).padStart(2,'0'), d=String(n.getDate()).padStart(2,'0');
-    return `${y}-${m}-${d}`;
-  };
-  let _todayKey = todayKeyStr();
+  /* ====== 👇 추가: 구글시트 자동 폴링(버튼 없이 최신 반영) ====== */
+  const AUTO_REFRESH_MS = 15000; // 15초(원하면 10~30초로 조절)
+  let _pollTimer = null;
+  let _lastDataHash = null;
 
-  function onDayRollover(){ // ★ 추가
-    const nowKey = todayKeyStr();
-    if (nowKey !== _todayKey) {
-      _todayKey = nowKey;
-      const n = new Date();
-      if (state.year === n.getFullYear() && state.month === n.getMonth()) {
-        drawCalendar();                // today 하이라이트 갱신
-        notifyCalendarChange('today'); // 안드로이드에 캡처 트리거
+  function hashString(s){
+    let h=5381; for(let i=0;i<s.length;i++){ h=((h<<5)+h)+s.charCodeAt(i); }
+    return (h>>>0).toString(36);
+  }
+  function hashData(obj){
+    try { return hashString(JSON.stringify(obj)); } catch(e){ return ''; }
+  }
+
+  async function checkForUpdatesOnce(){
+    if (modal.classList.contains('show')) return; // 편집 중이면 충돌 방지
+    try{
+      const res = await fetchWithTimeout(WEBAPP_URL+'?_='+Date.now(), 6000);
+      const j = await res.json();
+      if(!(j && j.ok)) return;
+      const newHash = hashData(j.data||{});
+      if (newHash !== _lastDataHash){
+        _lastDataHash = newHash;
+        sheetData = j.data || {};
+        drawCalendar(); // 변경사항만 반영
       }
-    }
+    }catch(e){ /* 네트워크 오류는 다음 주기에 재시도 */ }
   }
 
-  function scheduleMidnightCheck(){ // ★ 추가
-    const now = new Date();
-    const next = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1, 0, 1, 5); // 00:01:05
-    setTimeout(()=>{ onDayRollover(); scheduleMidnightCheck(); }, next - now);
+  function startAutoRefresh(){
+    stopAutoRefresh();
+    _pollTimer = setInterval(checkForUpdatesOnce, AUTO_REFRESH_MS);
+  }
+  function stopAutoRefresh(){
+    if(_pollTimer){ clearInterval(_pollTimer); _pollTimer=null; }
   }
 
-  // 가시성 복귀 시 보정 (백그라운드 -> 포그라운드) // ★ 추가
+  // 탭이 보일 때만 폴링, 숨겨지면 중단
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') {
-      onDayRollover();
-    }
+    if (document.visibilityState === 'visible') startAutoRefresh();
+    else stopAutoRefresh();
   });
 
   /* ===== 초기화 ===== */
-  (async()=>{ await reloadFromSheet(); render(); scheduleMidnightCheck(); /* ★ 추가 */ })();
+  (async()=>{
+    await reloadFromSheet();
+    render();
+    _lastDataHash = hashData(sheetData); // 초기 해시 저장
+    startAutoRefresh();                  // 폴링 시작
+  })();
 </script>
 </body>
 </html>
