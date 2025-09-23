@@ -1,62 +1,49 @@
-// scripts/capture.js
+// capture.js
 const fs = require("fs");
 const path = require("path");
 const puppeteer = require("puppeteer");
 
-(async () => {
-  const URL = process.env.TARGET_URL;
-  const OUT = process.env.OUT_PATH || "public/calendar_mobile.png";
-  const SEL = process.env.CAL_SELECTOR || "#calendarCapture";
-  const CROP = Math.min(0.999, Math.max(0.1, parseFloat(process.env.CROP_RATIO || "0.88")));
+const URL = process.env.TARGET_URL || "https://sung5727.github.io/WEB_celrender/";
+const OUT = process.env.OUT_PATH || "calendar_mobile.png";
+const SEL = process.env.CAL_SELECTOR || "#calendarCapture";
+const CROP = parseFloat(process.env.CROP_RATIO || "0.88");
 
-  if (!URL) {
-    console.error("TARGET_URL env required");
-    process.exit(1);
-  }
+(async () => {
+  // 폴더 보장
+  fs.mkdirSync(path.dirname(OUT), { recursive: true });
 
   const browser = await puppeteer.launch({
-    headless: "new",
-    args: ["--no-sandbox", "--disable-setuid-sandbox", "--lang=ko-KR"],
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    defaultViewport: {
+      width: 412, height: 915, deviceScaleFactor: 2, isMobile: true,
+      hasTouch: true, isLandscape: false,
+    },
   });
+  const page = await browser.newPage();
 
-  try {
-    const page = await browser.newPage();
+  // 모바일 UA로 고정
+  await page.setUserAgent(
+    "Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 " +
+    "(KHTML, like Gecko) Chrome/123.0 Mobile Safari/537.36"
+  );
 
-    // 모바일 환경 흉내
-    await page.setViewport({ width: 412, height: 915, deviceScaleFactor: 2 });
-    await page.setUserAgent(
-      "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36"
-    );
-    await page.setExtraHTTPHeaders({ "Accept-Language": "ko-KR,ko;q=0.9" });
+  await page.goto(URL, { waitUntil: "networkidle2", timeout: 90_000 });
 
-    await page.goto(URL, { waitUntil: "networkidle2", timeout: 120000 });
-    await page.evaluateHandle("document.fonts && document.fonts.ready"); // 폰트 로딩 대기
+  // 캘린더 등장 기다림
+  const el = await page.waitForSelector(SEL, { timeout: 60_000 });
+  const box = await el.boundingBox();
+  if (!box) throw new Error("calendar element bbox is null");
 
-    await page.waitForSelector(SEL, { visible: true, timeout: 60000 });
-    const el = await page.$(SEL);
+  // 상단만 자르기(CROP 비율)
+  let { x, y, width, height } = box;
+  height = Math.round(height * (isFinite(CROP) ? CROP : 0.88));
+  const clip = { x: Math.round(x), y: Math.round(y), width: Math.round(width), height };
 
-    // 요소가 화면 안으로 들어오도록 스크롤
-    await page.evaluate((e) => e.scrollIntoView({ block: "start", inline: "nearest" }), el);
+  await page.screenshot({ path: OUT, clip, type: "png" });
+  await browser.close();
 
-    const box = await el.boundingBox();
-    if (!box) throw new Error("Cannot get bounding box of calendar element");
-
-    const clip = {
-      x: Math.max(0, Math.floor(box.x)),
-      y: Math.max(0, Math.floor(box.y)),
-      width: Math.max(1, Math.floor(box.width)),
-      height: Math.max(1, Math.floor(box.height * CROP)), // 하단 자르기
-    };
-
-    const shot = await page.screenshot({ type: "png", clip });
-
-    fs.mkdirSync(path.dirname(OUT), { recursive: true });
-    fs.writeFileSync(OUT, shot);
-    console.log(`Saved: ${OUT} (${clip.width}x${clip.height})`);
-  } catch (err) {
-    console.error(err);
-    process.exitCode = 1;
-  } finally {
-    await browser.close();
-  }
-})();
+  console.log(`Saved: ${OUT}`);
+})().catch(err => {
+  console.error(err);
+  process.exit(1);
+});
