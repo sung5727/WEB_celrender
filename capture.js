@@ -40,9 +40,6 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
     try { await page.evaluate(() => document.fonts && document.fonts.ready); } catch {}
 
     // 3) 여러 신호 중 하나라도 만족할 때까지 대기
-    //   - body[data-ready="1"]  (index가 찍어 줄 때)
-    //   - monthTitle에 'YYYY. MM.' 형식이 보일 때
-    //   - grid 안에 cell이 채워졌을 때
     const start = Date.now();
     const MAX_WAIT = 120000; // 120초
 
