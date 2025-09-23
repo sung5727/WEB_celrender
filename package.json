@@ -1,0 +1,11 @@
+{
+  "name": "web_celrender",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "capture": "node capture.js"
+  },
+  "dependencies": {
+    "puppeteer": "^22.0.0"
+  }
+}
