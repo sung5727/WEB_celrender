@@ -1,45 +1,37 @@
 name: Capture Calendar (mobile shot)
 
 on:
-  workflow_dispatch: {}   # 수동 실행
-  # schedule:
-  #   - cron: "*/30 * * * *"  # 필요하면 주기 실행(30분마다 예시)
+  workflow_dispatch: {}
 
 permissions:
-  contents: write  # 결과 이미지를 커밋하려면 필요
+  contents: write
 
 jobs:
   capture:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "20"
 
-      # (옵션) 한글 폰트 보정
-      - name: Install Korean fonts
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y fonts-noto-cjk fonts-nanum fonts-unfonts-core
-          fc-cache -fv
+      - name: Install deps
+        run: npm install
 
-      - name: Install deps (puppeteer)
-        run: |
-          npm install puppeteer@22
-
-      - name: Run node capture.js
-        run: |
-          node capture.js
+      - name: Run capture
+        run: npm run capture
 
       - name: Commit & push image
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git pull --rebase origin main
           git add docs/capture/calendar_mobile.png
-          git commit -m "chore: update mobile calendar screenshot [skip ci]" || echo "No changes"
-          git push
+          git commit -m "chore: update screenshot $(date -u +'%Y-%m-%dT%H:%M:%SZ')" || echo "no changes"
+          git push origin HEAD:main
