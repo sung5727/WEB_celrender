@@ -1,16 +1,33 @@
 // capture.js
+import fs from 'fs';
+import path from 'path';
 import puppeteer from 'puppeteer';
 
+// ===== 설정 =====
 const URL = 'https://sung5727.github.io/WEB_celrender/'; // 기존 페이지
-const OUT = 'docs/calendar_mobile.png';
+const OUT_DIR = 'docs';
+const OUT_FILE = 'calendar_mobile.png';
+const OUT = path.join(OUT_DIR, OUT_FILE);
 
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+// 필요 시(액션/서버) 크롬 경로 지정 지원
+const EXEC_PATH = process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// 출력 폴더 보장
+fs.mkdirSync(OUT_DIR, { recursive: true });
 
 (async () => {
   const browser = await puppeteer.launch({
     headless: 'new',
-    args: ['--no-sandbox','--disable-setuid-sandbox','--lang=ko-KR,ko'],
-    defaultViewport: null
+    executablePath: EXEC_PATH, // puppeteer-core 환경 대비
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--lang=ko-KR,ko',
+      '--font-render-hinting=medium',
+    ],
+    defaultViewport: null,
   });
 
   try {
@@ -18,42 +35,52 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
     // 모바일 에뮬레이션(픽셀 계열)
     await page.emulate({
-      viewport: { width: 412, height: 915, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
-      userAgent: 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36'
+      viewport: {
+        width: 412,
+        height: 915,
+        deviceScaleFactor: 2,
+        isMobile: true,
+        hasTouch: true,
+      },
+      userAgent:
+        'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36',
     });
 
     await page.setExtraHTTPHeaders({ 'Accept-Language': 'ko-KR,ko;q=0.9' });
-    await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
-    // 캘린더 그리드가 채워질 때까지 대기
-    await page.waitForSelector('#calendarCapture', { timeout: 60000 });
+    // 페이지 로드
+    await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 90_000 });
+
+    // 캘린더 컨테이너 등장 + 그리드 채워질 때까지 기다림
+    await page.waitForSelector('#calendarCapture', { timeout: 90_000 });
     await page.waitForFunction(
       () => document.querySelector('#calendarCapture .grid')?.children?.length > 0,
-      { timeout: 60000 }
+      { timeout: 60_000 }
     );
 
-    // 타이틀 텍스트가 YYYY. MM. 형태로 표시될 때까지 대기
+    // 타이틀이 YYYY. MM. 형식으로 표시될 때까지
     await page.waitForFunction(
-      () => /\d{4}\.\s*\d{2}\./.test(document.getElementById('monthTitle')?.textContent || ''),
-      { timeout: 30000 }
+      () => /\d{4}\.\s*\d{1,2}\./.test(document.getElementById('monthTitle')?.textContent || ''),
+      { timeout: 30_000 }
     );
 
-    // 네트워크 idle + 여유
-    await page.waitForNetworkIdle({ idleTime: 800, timeout: 60000 });
+    // 네트워크 안정화 + 남는 애니메이션 마감 대기
+    await page.waitForNetworkIdle({ idleTime: 800, timeout: 60_000 });
     await sleep(1000);
 
-    // 페이지 안에서 임시 래퍼를 만들어(타이틀+달력) 스타일 주입 후 그 엘리먼트만 캡처
+    // 임시 래퍼(capWrap) 구성: 타이틀 바 + 달력 복제 + 보더 스타일 주입
     const capHandle = await page.evaluateHandle(() => {
       const cal = document.querySelector('#calendarCapture');
       if (!cal) return null;
 
-      // 기존 달력 복제 (원본 건드리지 않음)
+      // 기존 달력 "복제" (원본 DOM에는 손대지 않음)
       const clone = cal.cloneNode(true);
 
-      // 현재 타이틀 텍스트
-      const titleText = (document.getElementById('monthTitle')?.textContent || '').trim() || 'YYYY. MM.';
+      // 타이틀 텍스트
+      const titleText =
+        (document.getElementById('monthTitle')?.textContent || '').trim() || 'YYYY. MM.';
 
-      // 임시 래퍼 + 타이틀 바
+      // 래퍼
       const wrap = document.createElement('div');
       wrap.id = 'capWrap';
       wrap.style.position = 'fixed';
@@ -65,6 +92,7 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
       wrap.style.overflow = 'hidden';
       wrap.style.boxShadow = '0 4px 10px rgba(0,0,0,.04)';
 
+      // 타이틀 바
       const topbar = document.createElement('div');
       topbar.style.display = 'flex';
       topbar.style.alignItems = 'center';
@@ -80,16 +108,17 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
       title.style.letterSpacing = '.5px';
       topbar.appendChild(title);
 
-      // 캘린더 클론에 보더 보강(셀 경계 또렷)
+      // 🔹 스타일을 wrap 안에 "직접" 삽입해야 캡처에 반영됨
       const style = document.createElement('style');
       style.textContent = `
         .weekday{background:#f3f4f6;border-bottom:1px solid #dfe3e8;}
         .grid{border-top:1px solid #dfe3e8;}
         .grid .cell{border-right:1px solid #dfe3e8;border-bottom:1px solid #dfe3e8;}
         .grid .cell:nth-child(7n){border-right:1px solid #dfe3e8;}
+        .date{font-weight:700;}
       `;
-      clone.prepend(style);
 
+      wrap.appendChild(style);
       wrap.appendChild(topbar);
       wrap.appendChild(clone);
       document.body.appendChild(wrap);
@@ -98,19 +127,19 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
     if (!capHandle) throw new Error('capWrap build failed');
 
-    // capWrap 요소만 캡처
+    // 요소만 캡처
     const box = await capHandle.asElement();
     await box.screenshot({ path: OUT, type: 'png' });
 
-    // 정리
+    // cleanup
     await page.evaluate(() => {
       const w = document.getElementById('capWrap');
       if (w) w.remove();
     });
 
-    console.log('Saved:', OUT);
+    console.log('✅ Saved:', OUT);
   } catch (e) {
-    console.error('Capture failed:', e);
+    console.error('❌ Capture failed:', e);
     process.exitCode = 1;
   } finally {
     await browser.close();
