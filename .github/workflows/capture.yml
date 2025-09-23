@@ -1,37 +1,46 @@
 name: Capture Calendar (mobile shot)
 
 on:
-  workflow_dispatch: {}
-
-permissions:
-  contents: write
+  workflow_dispatch:
 
 jobs:
   capture:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0   # 최신 commit 전체 기록 필요
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: 20
 
       - name: Install deps
-        run: npm install
+        run: |
+          npm install puppeteer@22
 
       - name: Run capture
-        run: npm run capture
+        run: |
+          node capture.js
 
       - name: Commit & push image
         run: |
+          set -e
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch origin main
-          git pull --rebase origin main
+
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+          # 원격 최신 가져오기 (자동 stash로 로컬 스샷 보호)
+          git fetch origin
+          git pull --rebase --autostash origin ${{ github.ref_name }}
+
+          mkdir -p docs/capture
           git add docs/capture/calendar_mobile.png
-          git commit -m "chore: update screenshot $(date -u +'%Y-%m-%dT%H:%M:%SZ')" || echo "no changes"
-          git push origin HEAD:main
+
+          git commit -m "chore: update mobile calendar screenshot $(date -u +'%Y-%m-%dT%H:%M:%SZ')" || echo "no changes"
+
+          git push origin HEAD:${{ github.ref_name }}
