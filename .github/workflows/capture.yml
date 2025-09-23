@@ -1,9 +1,9 @@
 name: Capture Calendar (mobile shot)
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
   schedule:
-    - cron: "0 */3 * * *"   # 3시간마다(원하면 바꿔도 됨)
+    - cron: "*/15 * * * *"   # 15분마다
 
 permissions:
   contents: write
@@ -21,24 +21,19 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Install deps (Puppeteer + fonts)
+      - name: Install deps (puppeteer + fonts)
         run: |
-          npm i --no-audit --no-fund puppeteer@22.15.0
           sudo apt-get update
-          sudo apt-get install -y fonts-noto-cjk fonts-noto-color-emoji
+          sudo apt-get install -y fonts-noto fonts-noto-cjk
+          npm i puppeteer@22.15.0
 
-      - name: Capture mobile screenshot
-        env:
-          TARGET_URL: "https://sung5727.github.io/WEB_celrender/"
-          OUT_PATH: "calendar_mobile.png"      # ← 루트에 저장(= Pages에서 /WEB_celrender/calendar_mobile.png)
-          CAL_SELECTOR: "#calendarCapture"
-          CROP_RATIO: "0.88"
+      - name: Run node capture.js
         run: node capture.js
 
       - name: Commit & push image
         run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add calendar_mobile.png
-          git commit -m "Update calendar_mobile.png [skip ci]" || echo "No changes"
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          git add docs/calendar_mobile.png
+          git commit -m "auto: update mobile calendar shot" || echo "no changes"
           git push
