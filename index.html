@@ -2,73 +2,205 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>출근캘린더</title>
 <style>
-  :root{ --primary:#16a34a; --red:#e11d48; --blue:#2563eb; --text:#222; --sub:#6b7280; --border:#dfe3e8; --bg:#f8fafc; --card:#fff; }
-  *{box-sizing:border-box} body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;color:var(--text)}
+  :root{ --primary:#16a34a; --red:#e11d48; --blue:#2563eb; --text:#222; --sub:#6b7280; --border:#e5e7eb; --bg:#f8fafc; --card:#fff; }
+  *{box-sizing:border-box}
+  body{ margin:0;background:var(--bg);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+    color:var(--text); -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:geometricPrecision; }
   .wrap{max-width:740px;margin:0 auto;padding:12px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:0 4px 10px rgba(0,0,0,.04);overflow:hidden}
 
-  /* ⬇ 캡처 대상 : 타이틀+요일+그리드 */
-  #calendarCapture{background:#fff;border:2px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:0 4px 10px rgba(0,0,0,.04)}
-  .topbar{display:flex;align-items:center;justify-content:center;padding:12px 16px;border-bottom:1px solid var(--border);gap:8px;background:#fff}
-  .title{font-weight:800;font-size:20px;letter-spacing:.5px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);gap:8px}
+  .title{font-weight:700;font-size:20px;display:flex;align-items:center;gap:8px}
+  .actions{display:flex;gap:8px}
+
+  button{height:40px;border-radius:10px;border:1px solid var(--border);background:#fff;padding:0 14px;font-weight:600;cursor:pointer}
+  .primary{background:var(--primary);border-color:var(--primary);color:#fff}
+  .danger{background:#ef4444;border-color:#ef4444;color:#fff}
+  .mini{height:36px;padding:0 12px;border-radius:9px;border:1px solid var(--border);background:#fff;font-weight:600;font-size:13px;cursor:pointer}
+  .navbtn{width:36px;height:36px;border-radius:999px;border:1px solid var(--border);background:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;cursor:pointer}
 
   .weekday{display:grid;grid-template-columns:repeat(7,1fr);background:#f3f4f6;border-bottom:1px solid var(--border)}
-  .weekday div{padding:10px 0;text-align:center;font-weight:700;color:var(--sub)}
-  .weekday div:first-child{color:var(--red)} .weekday div:last-child{color:var(--blue)}
+  .weekday div{padding:10px 0;text-align:center;font-weight:600;color:var(--sub)}
+  .weekday div:first-child{color:var(--red)}
+  .weekday div:last-child{color:var(--blue)}
 
-  .grid{display:grid;grid-template-columns:repeat(7,1fr);border-top:1px solid var(--border);touch-action:pan-y}
-  .cell{height:72px;padding:22px 8px 6px;position:relative;background:#fff;overflow:hidden;border-right:1px solid var(--border);border-bottom:1px solid var(--border)}
-  .grid .cell:nth-child(7n){border-right:1px solid var(--border)} /* 마지막 열도 선 유지 */
+  .grid{ display:grid;grid-template-columns:repeat(7,1fr); touch-action: pan-y; }
+  .cell{ height:72px; padding:22px 8px 6px 8px; border-right:1px solid var(--border); border-bottom:1px solid var(--border);
+    position:relative;background:#fff;overflow:hidden; }
+  .grid .cell:nth-child(7n){border-right:none}
 
-  .date{position:absolute;left:8px;top:6px;font-weight:800;line-height:1;z-index:1}
+  .date{ position:absolute; left:8px; top:6px; font-weight:700; line-height:1; z-index:1; }
   .sun .date{color:var(--red)} .sat .date{color:var(--blue)}
-  .edge .date{color:#c7cdd7} .edge .time{opacity:.55}
-  .today{background:#f5f5f5} .today .date{color:#000;font-weight:800;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
+  .muted{color:#c7cdd7}
+  .edge .date{ color:#c7cdd7; } .edge .time{ opacity:.55; }
 
-  .time{position:absolute;bottom:0;left:0;width:100%;height:22px;line-height:22px;text-align:center;font-size:13px;font-weight:700}
-  .time.sevenEight{background:#E5E5E5;color:#000} .time.noon{background:#8ECAE6;color:#000}
-  .time.off{background:#FFB703;color:#000} .time.special{background:#219EBC;color:#000}
-  .time.special_small{font-size:12px;background:#219EBC;color:#000}
+  .today {background:#f5f5f5}
+  .today .date { color:#000;font-weight:700;text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+
+  /* 공휴일: 이번달은 진한 빨강, 전월/익월(엣지)은 흐리게 */
+  .holiday .date { color: var(--red); }
+  .edge.holiday .date { color: rgba(225,29,72,0.5); }
+  .holiday-badge{ position:absolute;left:8px;top:26px;font-size:10px;color:var(--red);font-weight:700;white-space:nowrap;z-index:1; }
+  .edge .holiday-badge{ color:rgba(225,29,72,0.5); }
+
+  .time{ position:absolute;bottom:0;left:0;width:100%;height:22px;line-height:22px;text-align:center;font-size:13px;font-weight:600;border-radius:0; }
+  .time.sevenEight{ background:#E5E5E5; color:#000; } .time.noon{ background:#8ECAE6; color:#000; }
+  .time.off{ background:#FFB703; color:#000; } .time.special{ background:#219EBC; color:#000; }
+  .time.special_small{ font-size:12px; background:#219EBC; color:#000; }
+
+  #modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;align-items:flex-end}
+  #modal.show{display:flex;}
+  .sheet{width:100%;max-width:740px;margin:0 auto;background:#fff;border-top-left-radius:16px;border-top-right-radius:16px;padding:16px;box-shadow:0 -6px 20px rgba(0,0,0,.15)}
+  .sheet h3{margin:0 0 10px 0;font-size:16px}
+  .controls{display:flex;gap:8px;margin-top:12px}
+  select{width:100%;height:44px;border:1px solid var(--border);border-radius:10px;padding:0 10px;font-size:16px;background:#fff}
+
+  .section-divider{ height:1px;background:var(--border); margin:12px 0 4px 0; border-radius:1px; }
 </style>
 </head>
 <body>
   <div class="wrap">
-    <div id="calendarCapture">
-      <div class="topbar"><div class="title"><span id="monthTitle">YYYY. MM.</span></div></div>
-      <div class="weekday"><div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div></div>
-      <div class="grid" id="grid"></div>
+    <div class="card">
+      <div class="topbar">
+        <button class="navbtn" id="prevBtn">◀</button>
+        <div class="title">
+          <span id="monthTitle">YYYY. MM.</span>
+        </div>
+        <div class="actions">
+          <button class="mini" id="sheetLoadBtn">불러오기</button>
+          <button class="navbtn" id="nextBtn">▶</button>
+        </div>
+      </div>
+
+      <div id="calendarCapture">
+        <div class="weekday">
+          <div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div>
+        </div>
+        <div class="grid" id="grid"></div>
+      </div>
+    </div>
+    <div class="section-divider"></div>
+  </div>
+
+  <!-- 모달 -->
+  <div id="modal">
+    <div class="sheet">
+      <h3 id="modalDate">YYYY-MM-DD 출근/상태</h3>
+      <select id="timeSelect">
+        <option value="">선택</option>
+        <option value="7시">7시</option><option value="8시">8시</option>
+        <option value="12시">12시</option><option value="휴무">휴무</option>
+        <option value="연차">연차</option><option value="병가">병가</option>
+        <option value="공가">공가</option><option value="출장">출장</option>
+        <option value="돌봄">돌봄</option><option value="사가독서">사가독서</option>
+        <option value="체련대회">체련대회</option>
+      </select>
+      <div class="controls">
+        <button class="primary" id="saveBtn">저장</button>
+        <button class="danger" id="clearBtn">삭제</button>
+        <button id="cancelBtn">취소</button>
+      </div>
     </div>
   </div>
 
 <script>
-  // === 설정 ===
-  const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwA1CtxLfbziu52wTUa-R4TKrN4NQajVtFKDVwYBFhGalUPU3QcHbK24mueAMkI8DLM/exec';
+  /* ===== 기본 상수 ===== */
+  const WEBAPP_URL  = 'https://script.google.com/macros/s/AKfycbwA1CtxLfbziu52wTUa-R4TKrN4NQajVtFKDVwYBFhGalUPU3QcHbK24mueAMkI8DLM/exec';
+  const SERVICE_KEY = 'f3fe3ff25a8fe96c692eacced03e726ebf3443ee7cdd8e50a1d06a1b0d7ee8cf';
+  const USE_HOLIDAYS = SERVICE_KEY && SERVICE_KEY.trim().length > 0;
+  const SERVICE_KEY_PARAM = encodeURIComponent(SERVICE_KEY);
 
-  // === 엘리먼트 ===
-  const grid = document.getElementById('grid');
-  const monthTitle = document.getElementById('monthTitle');
+  /* ===== 엘리먼트 ===== */
+  const grid=document.getElementById('grid');
+  const monthTitle=document.getElementById('monthTitle');
+  const prevBtn=document.getElementById('prevBtn');
+  const nextBtn=document.getElementById('nextBtn');
+  const sheetLoadBtn=document.getElementById('sheetLoadBtn');
+  const modal=document.getElementById('modal');
+  const modalDate=document.getElementById('modalDate');
+  const timeSelect=document.getElementById('timeSelect');
+  const saveBtn=document.getElementById('saveBtn');
+  const clearBtn=document.getElementById('clearBtn');
+  const cancelBtn=document.getElementById('cancelBtn');
 
-  // === 상태/유틸 ===
-  let state = (()=>{try{const s=localStorage.getItem('lastView');if(s){const o=JSON.parse(s);if(o.year&&o.month>=0)return o;}}catch(e){};const n=new Date();return{year:n.getFullYear(),month:n.getMonth()};})();
-  let sheetData = {};
-  const pad = n => n.toString().padStart(2,'0');
-  const keyOf = (y,m,d)=>`${y}-${pad(m+1)}-${pad(d)}`;
-  const fetchWithTimeout=(u,ms,i={})=>{const c=new AbortController();const t=setTimeout(()=>c.abort('timeout'),ms);return fetch(u,{...i,signal:c.signal}).finally(()=>clearTimeout(t));};
+  /* ===== 상태 ===== */
+  let state=(()=>{try{const s=localStorage.getItem('lastView');if(s){const o=JSON.parse(s);if(o.year&&o.month>=0)return o;}}catch(e){};const n=new Date();return{year:n.getFullYear(),month:n.getMonth()};})();
+  let selectedKey=null; let sheetData={}; let holidayMap={};
 
-  async function reloadFromSheet(){
-    try{
-      const r = await fetchWithTimeout(WEBAPP_URL+'?_='+(Date.now()), 6000);
-      const j = await r.json();
-      if(j && j.ok) sheetData = j.data || {};
-    }catch(e){ sheetData = {}; }
+  /* ===== 유틸 ===== */
+  const pad=n=>n.toString().padStart(2,'0');
+  const keyOf=(y,m,d)=>`${y}-${pad(m+1)}-${pad(d)}`;
+  function ymAdd(year, month, delta){ const d=new Date(year, month+delta, 1); return {y:d.getFullYear(), m:d.getMonth()}; }
+
+  /* ===== 네트워크 보조(타임아웃) ===== */
+  async function fetchWithTimeout(url, ms, init={}){
+    const ctl = new AbortController();
+    const t = setTimeout(()=>ctl.abort('timeout'), ms);
+    try{ return await fetch(url, {...init, signal:ctl.signal}); }
+    finally{ clearTimeout(t); }
   }
 
+  /* ===== 공휴일 캐시 (localStorage) ===== */
+  const HOLI_CACHE_KEY = 'holidayCacheV1'; // { "YYYY-MM": { at:ts, data:{'YYYY-MM-DD':'이름'} } }
+  const HOLI_TTL = 7*24*60*60*1000; // 7일
+
+  function holiRead(ym){ try{ const raw=localStorage.getItem(HOLI_CACHE_KEY); if(!raw) return null;
+    const box=JSON.parse(raw)||{}; const hit=box[ym]; if(!hit) return null;
+    if(Date.now()-hit.at > HOLI_TTL) return null; return hit.data||null;
+  }catch(e){ return null; } }
+
+  function holiWrite(ym, data){ try{
+    const raw=localStorage.getItem(HOLI_CACHE_KEY); const box=raw?JSON.parse(raw):{};
+    box[ym] = { at: Date.now(), data };
+    localStorage.setItem(HOLI_CACHE_KEY, JSON.stringify(box));
+  }catch(e){} }
+
+  async function fetchHolidays(year,month){
+    if(!USE_HOLIDAYS) return {};
+    const ym = `${year}-${pad(month+1)}`;
+    const cached = holiRead(ym);
+    if(cached) return cached;
+
+    const url=`https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo?solYear=${year}&solMonth=${pad(month+1)}&numOfRows=50&_type=json&ServiceKey=${SERVICE_KEY_PARAM}`;
+    const res=await fetchWithTimeout(url, 4500);
+    if(!res.ok) return {};
+    const data=await res.json();
+    const items=(((data||{}).response||{}).body||{}).items;
+    const arr=items&&items.item?(Array.isArray(items.item)?items.item:[items.item]):[];
+    const map={};
+    for(const it of arr){
+      const ymd=String(it.locdate||'');
+      if(/^\d{8}$/.test(ymd)){
+        const k=`${ymd.slice(0,4)}-${ymd.slice(4,6)}-${ymd.slice(6,8)}`;
+        map[k]=it.dateName||'';
+      }
+    }
+    holiWrite(ym, map);
+    return map;
+  }
+
+  /* ===== 시트 저장/불러오기 ===== */
+  async function reloadFromSheet(){
+    const res=await fetchWithTimeout(WEBAPP_URL+'?_='+Date.now(), 6000);
+    const j=await res.json(); if(j&&j.ok) sheetData=j.data||{};
+  }
+  async function saveToSheet(key,value){
+    const p=new URLSearchParams();p.set('payload',JSON.stringify({mode:'set',key,value}));
+    await fetchWithTimeout(WEBAPP_URL, 6000,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:p.toString()});
+  }
+  async function deleteFromSheet(key){
+    const p=new URLSearchParams();p.set('payload',JSON.stringify({mode:'delete',key}));
+    await fetchWithTimeout(WEBAPP_URL, 6000,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:p.toString()});
+  }
+
+  /* ===== 달력 그리기 ===== */
   function drawCalendar(){
     const y=state.year,m=state.month;
     monthTitle.textContent=`${y}. ${pad(m+1)}.`;
-
     const firstDay=new Date(y,m,1).getDay();
     const lastDate=new Date(y,m+1,0).getDate();
     const prevLast=new Date(y,m,0).getDate();
@@ -88,7 +220,13 @@
       const dateEl=document.createElement('div'); dateEl.className='date'; dateEl.textContent=dNum;
       if(isEdge) cell.classList.add('edge'); cell.appendChild(dateEl);
 
-      const k=keyOf(cYear,cMonth,dNum);
+      const k=keyOf(cYear,cMonth,dNum); cell.dataset.key=k;
+
+      if(holidayMap[k]){
+        const b=document.createElement('div'); b.className='holiday-badge'; b.textContent=holidayMap[k];
+        cell.appendChild(b); cell.classList.add('holiday');
+      }
+
       const val=sheetData[k];
       if(val){
         const t=document.createElement('div'); t.className='time'; t.textContent=val;
@@ -104,14 +242,111 @@
         cell.classList.add('today');
       }
 
-      grid.appendChild(cell);
+      cell.addEventListener('click',()=>openModal(k,val||'')); grid.appendChild(cell);
     }
   }
 
+  /* ===== 렌더: 캐시 즉시 사용 + 비동기 갱신 ===== */
+  async function render(){
+    const { y:py, m:pm }=ymAdd(state.year,state.month,-1);
+    const { y:ny, m:nm }=ymAdd(state.year,state.month, 1);
+    const c1 = holiRead(`${py}-${pad(pm+1)}`) || {};
+    const c2 = holiRead(`${state.year}-${pad(state.month+1)}`) || {};
+    const c3 = holiRead(`${ny}-${pad(nm+1)}`) || {};
+    holidayMap = Object.assign({}, c1, c2, c3);
+    drawCalendar();
+
+    try{
+      const [prevMap,currMap,nextMap]=await Promise.all([
+        fetchHolidays(py,pm), fetchHolidays(state.year,state.month), fetchHolidays(ny,nm)
+      ]);
+      const newMap = Object.assign({}, prevMap, currMap, nextMap);
+      const changed = JSON.stringify(newMap) !== JSON.stringify(holidayMap);
+      holidayMap = newMap;
+      if (changed) drawCalendar();
+    }catch(e){}
+  }
+
+  /* ===== 모달 ===== */
+  function openModal(key,value){selectedKey=key;modalDate.textContent=key+' 출근/상태';timeSelect.value=value||'';modal.classList.add('show');}
+  function closeModal(){modal.classList.remove('show');}
+  saveBtn.addEventListener('click',async()=>{if(!selectedKey)return;await saveToSheet(selectedKey,timeSelect.value);sheetData[selectedKey]=timeSelect.value;drawCalendar();closeModal();});
+  clearBtn.addEventListener('click',async()=>{if(!selectedKey)return;await deleteFromSheet(selectedKey);delete sheetData[selectedKey];drawCalendar();closeModal();});
+  cancelBtn.addEventListener('click',closeModal);
+  modal.addEventListener('click',e=>{if(e.target===modal)closeModal();});
+
+  /* ===== 내비 버튼 ===== */
+  prevBtn.addEventListener('click',()=>{state.month--;if(state.month<0){state.month=11;state.year--;}localStorage.setItem('lastView', JSON.stringify(state));render();});
+  nextBtn.addEventListener('click',()=>{state.month++;if(state.month>11){state.month=0;state.year++;}localStorage.setItem('lastView', JSON.stringify(state));render();});
+  sheetLoadBtn.addEventListener('click',async()=>{await reloadFromSheet();drawCalendar();alert('불러오기 성공');});
+
+  /* ===== 스와이프(복원) ===== */
+  let touchStartX=0,touchEndX=0,touchStartY=0,touchEndY=0;
+  const SWIPE_THRESHOLD=50, VERTICAL_TOLERANCE=40;
+  grid.addEventListener('touchstart', e=>{
+    touchStartX=e.changedTouches[0].screenX;
+    touchStartY=e.changedTouches[0].screenY;
+  },{passive:true});
+  grid.addEventListener('touchend', e=>{
+    touchEndX=e.changedTouches[0].screenX;
+    touchEndY=e.changedTouches[0].screenY;
+    const dx=touchEndX-touchStartX, dy=touchEndY-touchStartY;
+    if(Math.abs(dx)>SWIPE_THRESHOLD && Math.abs(dy)<VERTICAL_TOLERANCE){
+      if(dx<0){ state.month++; if(state.month>11){state.month=0;state.year++;} }
+      else { state.month--; if(state.month<0){state.month=11;state.year--;} }
+      localStorage.setItem('lastView', JSON.stringify(state));
+      render();
+    }
+  },{passive:true});
+
+  /* ====== 👇 추가: 구글시트 자동 폴링(버튼 없이 최신 반영) ====== */
+  const AUTO_REFRESH_MS = 15000; // 15초(원하면 10~30초로 조절)
+  let _pollTimer = null;
+  let _lastDataHash = null;
+
+  function hashString(s){
+    let h=5381; for(let i=0;i<s.length;i++){ h=((h<<5)+h)+s.charCodeAt(i); }
+    return (h>>>0).toString(36);
+  }
+  function hashData(obj){
+    try { return hashString(JSON.stringify(obj)); } catch(e){ return ''; }
+  }
+
+  async function checkForUpdatesOnce(){
+    if (modal.classList.contains('show')) return; // 편집 중이면 충돌 방지
+    try{
+      const res = await fetchWithTimeout(WEBAPP_URL+'?_='+Date.now(), 6000);
+      const j = await res.json();
+      if(!(j && j.ok)) return;
+      const newHash = hashData(j.data||{});
+      if (newHash !== _lastDataHash){
+        _lastDataHash = newHash;
+        sheetData = j.data || {};
+        drawCalendar(); // 변경사항만 반영
+      }
+    }catch(e){ /* 네트워크 오류는 다음 주기에 재시도 */ }
+  }
+
+  function startAutoRefresh(){
+    stopAutoRefresh();
+    _pollTimer = setInterval(checkForUpdatesOnce, AUTO_REFRESH_MS);
+  }
+  function stopAutoRefresh(){
+    if(_pollTimer){ clearInterval(_pollTimer); _pollTimer=null; }
+  }
+
+  // 탭이 보일 때만 폴링, 숨겨지면 중단
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') startAutoRefresh();
+    else stopAutoRefresh();
+  });
+
+  /* ===== 초기화 ===== */
   (async()=>{
     await reloadFromSheet();
-    drawCalendar();
-    document.body.setAttribute('data-ready','1'); // 👈 캡처 스크립트가 이 신호를 기다림
+    render();
+    _lastDataHash = hashData(sheetData); // 초기 해시 저장
+    startAutoRefresh();                  // 폴링 시작
   })();
 </script>
 </body>
