@@ -1,0 +1,39 @@
+name: Capture Calendar (mobile shot)
+
+on:
+  schedule:
+    - cron: '0 * * * *'      # 매시 0분마다 (원하면 바꿔도 됨)
+  workflow_dispatch:         # 수동 실행 버튼
+  push:
+    paths:
+      - 'capture.js'
+      - '.github/workflows/capture.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install deps
+        run: npm install puppeteer
+      - name: Ensure docs folder
+        run: mkdir -p docs
+      - name: Run capture
+        run: node capture.js
+      - name: Commit & push image
+        run: |
+          if [ -n "$(git status --porcelain docs/calendar.png)" ]; then
+            git config user.name "github-actions"
+            git config user.email "github-actions@github.com"
+            git add docs/calendar.png
+            git commit -m "update calendar.png"
+            git push
+          else
+            echo "No changes in calendar.png"
+          fi
