@@ -1,7 +1,7 @@
-// capture.js  (ESM)
+// capture.js
 import puppeteer from 'puppeteer';
 
-const URL = 'https://sung5727.github.io/WEB_celrender/';   // GitHub Pages 주소
+const URL = 'https://sung5727.github.io/WEB_celrender/?_=' + Date.now(); // 캐시 무력화
 const OUT = 'docs/capture/calendar_mobile.png';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -9,38 +9,67 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 (async () => {
   const browser = await puppeteer.launch({
     headless: 'new',
-    args: ['--no-sandbox','--disable-setuid-sandbox','--lang=ko-KR,ko'],
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--lang=ko-KR,ko',
+      '--disable-dev-shm-usage'
+    ],
     defaultViewport: null
   });
 
   try {
     const page = await browser.newPage();
 
-    // Pixel 7 느낌으로 에뮬
+    // 모바일 에뮬레이션 (Pixel 7 비슷)
     await page.emulate({
       viewport: { width: 412, height: 915, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
-      userAgent: 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36'
+      userAgent:
+        'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36'
     });
 
     await page.setExtraHTTPHeaders({ 'Accept-Language': 'ko-KR,ko;q=0.9' });
-    await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
-    // 페이지 렌더 완료 신호 대기
-    await page.waitForSelector('body[data-ready="1"]', { timeout: 60000 });
-    await page.waitForSelector('#calendarCapture', { timeout: 60000 });
+    // 페이지 진입
+    await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 120000 });
 
-    // 약간의 여유 (폰트/레이아웃 안정화)
-    await page.waitForNetworkIdle({ idleTime: 800, timeout: 60000 }).catch(()=>{});
-    await sleep(800);
+    // 1) DOM 완성
+    await page.waitForSelector('#calendarCapture', { timeout: 120000 });
 
-    // 대상 엘리먼트만 캡처
+    // 2) 폰트 로딩(가능한 경우)
+    try { await page.evaluate(() => document.fonts && document.fonts.ready); } catch {}
+
+    // 3) 여러 신호 중 하나라도 만족할 때까지 대기
+    //   - body[data-ready="1"]  (index가 찍어 줄 때)
+    //   - monthTitle에 'YYYY. MM.' 형식이 보일 때
+    //   - grid 안에 cell이 채워졌을 때
+    const start = Date.now();
+    const MAX_WAIT = 120000; // 120초
+
+    while (Date.now() - start < MAX_WAIT) {
+      const ok = await page.evaluate(() => {
+        const hasReady = document.body.getAttribute('data-ready') === '1';
+        const titleOk = /\d{4}\.\s*\d{2}\./.test(document.getElementById('monthTitle')?.textContent || '');
+        const grid = document.querySelector('#grid');
+        const cells = grid ? grid.children.length : 0;
+        return hasReady || titleOk || cells > 0;
+      });
+      if (오케이) break;
+      await sleep(500);
+    }
+
+    // 네트워크 안정화 + 1초 여유
+    try { await page.waitForNetworkIdle({ idleTime: 800, timeout: 30000 }); } catch {}
+    await sleep(1000);
+
+    // 캘린더 박스만 캡처
     const el = await page.$('#calendarCapture');
-    if (!el) throw new Error('calendarCapture not found');
+    if (!el) throw new Error('#calendarCapture not found');
     await el.screenshot({ path: OUT, type: 'png' });
 
-    console.log('Saved:', OUT);
+    console.log('✅ Saved:', OUT);
   } catch (e) {
-    console.error('Capture failed:', e);
+    console.error('❌ Capture failed:', e);
     process.exitCode = 1;
   } finally {
     await browser.close();
