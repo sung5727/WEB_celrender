@@ -1,49 +1,43 @@
 // capture.js
-const fs = require("fs");
-const path = require("path");
-const puppeteer = require("puppeteer");
+const puppeteer = require('puppeteer');
 
-const URL = process.env.TARGET_URL || "https://sung5727.github.io/WEB_celrender/";
-const OUT = process.env.OUT_PATH || "calendar_mobile.png";
-const SEL = process.env.CAL_SELECTOR || "#calendarCapture";
-const CROP = parseFloat(process.env.CROP_RATIO || "0.88");
-
-(async () => {
-  // 폴더 보장
-  fs.mkdirSync(path.dirname(OUT), { recursive: true });
+async function run() {
+  const TARGET_URL = 'https://sung5727.github.io/WEB_celrender/';
 
   const browser = await puppeteer.launch({
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    defaultViewport: {
-      width: 412, height: 915, deviceScaleFactor: 2, isMobile: true,
-      hasTouch: true, isLandscape: false,
-    },
+    headless: true,
+    args: ['--no-sandbox','--disable-setuid-sandbox']
   });
   const page = await browser.newPage();
 
-  // 모바일 UA로 고정
   await page.setUserAgent(
-    "Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 " +
-    "(KHTML, like Gecko) Chrome/123.0 Mobile Safari/537.36"
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) ' +
+    'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1'
   );
+  await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2 });
 
-  await page.goto(URL, { waitUntil: "networkidle2", timeout: 90_000 });
+  page.on('dialog', async (d) => { try { await d.dismiss(); } catch(e) {} });
 
-  // 캘린더 등장 기다림
-  const el = await page.waitForSelector(SEL, { timeout: 60_000 });
-  const box = await el.boundingBox();
-  if (!box) throw new Error("calendar element bbox is null");
+  await page.goto(TARGET_URL, { waitUntil: 'networkidle2', timeout: 60000 });
+  await page.waitForSelector('#calendarCapture', { timeout: 30000 });
 
-  // 상단만 자르기(CROP 비율)
-  let { x, y, width, height } = box;
-  height = Math.round(height * (isFinite(CROP) ? CROP : 0.88));
-  const clip = { x: Math.round(x), y: Math.round(y), width: Math.round(width), height };
+  // 최신 데이터 적용(가능하면)
+  try {
+    await page.evaluate(async () => {
+      if (typeof reloadFromSheet === 'function') await reloadFromSheet();
+      if (typeof render === 'function') await render();
+      else if (typeof drawCalendar === 'function') drawCalendar();
+    });
+    await page.waitForTimeout(1200);
+  } catch (e) {}
 
-  await page.screenshot({ path: OUT, clip, type: "png" });
+  const el = await page.$('#calendarCapture');
+  if (!el) throw new Error('calendarCapture element not found');
+
+  await el.screenshot({ path: 'docs/calendar.png' });
+
   await browser.close();
+  console.log('✅ captured docs/calendar.png');
+}
 
-  console.log(`Saved: ${OUT}`);
-})().catch(err => {
-  console.error(err);
-  process.exit(1);
-});
+run().catch(err => { console.error('❌ capture failed:', err); process.exit(1); });
