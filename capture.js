@@ -51,7 +51,7 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
         const cells = grid ? grid.children.length : 0;
         return hasReady || titleOk || cells > 0;
       });
-      if (오케이) break;
+      if (ok) break;
       await sleep(500);
     }
 
