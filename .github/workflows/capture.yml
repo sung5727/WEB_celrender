@@ -1,41 +1,58 @@
 name: Capture Calendar (mobile shot)
 
 on:
-  workflow_dispatch:  # ← 수동 실행 버튼
+  workflow_dispatch: {}   # 수동 실행 버튼
+
+concurrency:
+  group: capture-mobile
+  cancel-in-progress: true
 
 permissions:
-  contents: write     # ← 이미지 커밋하려면 필요
+  contents: write
 
 jobs:
   capture:
     runs-on: ubuntu-latest
-
     steps:
+      # 1) 리포 체크아웃 (리베이스 가능하도록 전체 히스토리)
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
+      # 2) Node 설치
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Install Korean fonts
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y fonts-noto-cjk fonts-noto-color-emoji
-
+      # 3) Puppeteer 설치 (헤드리스 크롬)
       - name: Install deps (puppeteer)
         run: |
-          npm ci || npm i
+          npm i --no-audit --no-fund puppeteer@22
 
+      # 4) 캡처 실행 (capture.js가 리포 루트에 있다고 가정)
       - name: Run node capture.js
-        run: node capture.js
+        run: |
+          node capture.js
 
+      # 5) 이미지 커밋 & 푸시 (충돌 시 자동 rebase 후 재시도)
       - name: Commit & push image
         run: |
-          mkdir -p docs/capture
-          git config user.name "github-actions[bot]"
+          set -e
+          git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # 최신 변경을 먼저 반영
+          git fetch origin main
+          git pull --rebase origin main
+
+          # 출력 경로 정리 (이미 capture.js에서 저장했으면 생략 가능)
+          mkdir -p docs/capture
+
+          # 변경사항 스테이지/커밋
           git add docs/capture/calendar_mobile.png
-          git commit -m "chore: update mobile calendar screenshot $(date -u +'%Y-%m-%dT%H:%M:%SZ')" || echo "no changes"
-          git push
+          git diff --cached --quiet || git commit -m "chore: update mobile calendar screenshot $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+
+          # 푸시 (혹시 또 갱신됐으면 한 번 더 리베이스 후 재시도)
+          git push origin HEAD:main || (git pull --rebase origin main && git push origin HEAD:main)
