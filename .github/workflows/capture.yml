@@ -3,11 +3,10 @@ name: Capture Calendar (mobile shot)
 on:
   workflow_dispatch: {}
   schedule:
-    - cron: "0 */3 * * *"   # 3시간마다. 원하면 바꿔도 됩니다.
+    - cron: "0 */3 * * *"   # 3시간마다
 
-# ← 푸시하려면 필요!
 permissions:
-  contents: write
+  contents: write   # 커밋/푸시 권한
 
 jobs:
   capture:
@@ -31,10 +30,10 @@ jobs:
       - name: Capture mobile screenshot
         env:
           TARGET_URL: "https://sung5727.github.io/WEB_celrender/"
-          OUT_PATH: "public/calendar_mobile.png"
+          OUT_PATH: "public/calendar_mobile.png"   # ← URL 말고 '리포 경로'
           CAL_SELECTOR: "#calendarCapture"
-          CROP_RATIO: "0.88"   # 0.82 등으로 조정 가능
-        run: node scripts/capture.js
+          CROP_RATIO: "0.88"
+        run: node capture.js    # ← 루트의 capture.js 실행
 
       - name: Commit & push image
         run: |
