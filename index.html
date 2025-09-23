@@ -2,151 +2,73 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>출근캘린더</title>
 <style>
-  :root{
-    --primary:#16a34a; --red:#e11d48; --blue:#2563eb; --text:#222;
-    --sub:#6b7280; --border:#dfe3e8; --bg:#f8fafc; --card:#fff;
-  }
-  *{box-sizing:border-box}
-  body{
-    margin:0;background:var(--bg);
-    font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;
-    color:var(--text);
-    -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:geometricPrecision;
-  }
+  :root{ --primary:#16a34a; --red:#e11d48; --blue:#2563eb; --text:#222; --sub:#6b7280; --border:#dfe3e8; --bg:#f8fafc; --card:#fff; }
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;color:var(--text)}
   .wrap{max-width:740px;margin:0 auto;padding:12px}
 
-  /* ▼ 캡처 대상 전체 박스(타이틀+요일+그리드 포함) */
-  #calendarCapture{
-    background:#fff; border:2px solid var(--border); border-radius:12px; overflow:hidden;
-    box-shadow:0 4px 10px rgba(0,0,0,.04);
-  }
-
-  /* 상단 타이틀 바(이 안의 내용도 캡처됨) */
-  .topbar{
-    display:flex; align-items:center; justify-content:center;
-    padding:12px 16px; border-bottom:1px solid var(--border); gap:8px; background:#fff;
-  }
+  /* ⬇ 캡처 대상 : 타이틀+요일+그리드 */
+  #calendarCapture{background:#fff;border:2px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:0 4px 10px rgba(0,0,0,.04)}
+  .topbar{display:flex;align-items:center;justify-content:center;padding:12px 16px;border-bottom:1px solid var(--border);gap:8px;background:#fff}
   .title{font-weight:800;font-size:20px;letter-spacing:.5px}
 
-  .weekday{
-    display:grid; grid-template-columns:repeat(7,1fr);
-    background:#f3f4f6; border-bottom:1px solid var(--border);
-  }
+  .weekday{display:grid;grid-template-columns:repeat(7,1fr);background:#f3f4f6;border-bottom:1px solid var(--border)}
   .weekday div{padding:10px 0;text-align:center;font-weight:700;color:var(--sub)}
-  .weekday div:first-child{color:var(--red)}
-  .weekday div:last-child{color:var(--blue)}
+  .weekday div:first-child{color:var(--red)} .weekday div:last-child{color:var(--blue)}
 
-  .grid{
-    display:grid; grid-template-columns:repeat(7,1fr); touch-action: pan-y;
-    border-top:1px solid var(--border);
-  }
-  /* 셀 테두리를 모두 그려서 또렷하게 */
-  .cell{
-    height:72px; padding:22px 8px 6px 8px; position:relative; background:#fff; overflow:hidden;
-    border-right:1px solid var(--border); border-bottom:1px solid var(--border);
-  }
+  .grid{display:grid;grid-template-columns:repeat(7,1fr);border-top:1px solid var(--border);touch-action:pan-y}
+  .cell{height:72px;padding:22px 8px 6px;position:relative;background:#fff;overflow:hidden;border-right:1px solid var(--border);border-bottom:1px solid var(--border)}
   .grid .cell:nth-child(7n){border-right:1px solid var(--border)} /* 마지막 열도 선 유지 */
 
-  .date{ position:absolute; left:8px; top:6px; font-weight:800; line-height:1; z-index:1; }
+  .date{position:absolute;left:8px;top:6px;font-weight:800;line-height:1;z-index:1}
   .sun .date{color:var(--red)} .sat .date{color:var(--blue)}
-  .edge .date{ color:#c7cdd7; } .edge .time{ opacity:.55; }
+  .edge .date{color:#c7cdd7} .edge .time{opacity:.55}
+  .today{background:#f5f5f5} .today .date{color:#000;font-weight:800;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
 
-  .today {background:#f5f5f5}
-  .today .date { color:#000;font-weight:800;text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
-
-  /* 공휴일 표시 */
-  .holiday .date { color: var(--red); }
-  .edge.holiday .date { color: rgba(225,29,72,0.5); }
-  .holiday-badge{ position:absolute;left:8px;top:26px;font-size:10px;color:var(--red);font-weight:700;white-space:nowrap;z-index:1; }
-  .edge .holiday-badge{ color:rgba(225,29,72,0.5); }
-
-  .time{ position:absolute;bottom:0;left:0;width:100%;height:22px;line-height:22px;text-align:center;font-size:13px;font-weight:700;border-radius:0; }
-  .time.sevenEight{ background:#E5E5E5; color:#000; } .time.noon{ background:#8ECAE6; color:#000; }
-  .time.off{ background:#FFB703; color:#000; } .time.special{ background:#219EBC; color:#000; }
-  .time.special_small{ font-size:12px; background:#219EBC; color:#000; }
-
-  /* 모달(앱에서 사용, 캡처와 무관) */
-  #modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;align-items:flex-end}
-  #modal.show{display:flex;}
-  .sheet{width:100%;max-width:740px;margin:0 auto;background:#fff;border-top-left-radius:16px;border-top-right-radius:16px;padding:16px;box-shadow:0 -6px 20px rgba(0,0,0,.15)}
-  .sheet h3{margin:0 0 10px 0;font-size:16px}
-  .controls{display:flex;gap:8px;margin-top:12px}
-  button,select{height:40px;border-radius:10px;border:1px solid var(--border);background:#fff;padding:0 14px;font-weight:600;cursor:pointer}
-  select{width:100%;height:44px}
-  .primary{background:var(--primary);border-color:var(--primary);color:#fff}
-  .danger{background:#ef4444;border-color:#ef4444;color:#fff}
+  .time{position:absolute;bottom:0;left:0;width:100%;height:22px;line-height:22px;text-align:center;font-size:13px;font-weight:700}
+  .time.sevenEight{background:#E5E5E5;color:#000} .time.noon{background:#8ECAE6;color:#000}
+  .time.off{background:#FFB703;color:#000} .time.special{background:#219EBC;color:#000}
+  .time.special_small{font-size:12px;background:#219EBC;color:#000}
 </style>
 </head>
 <body>
   <div class="wrap">
-    <!-- ▼ 이 박스 한 장을 통째로 캡처 -->
     <div id="calendarCapture">
-      <div class="topbar">
-        <div class="title"><span id="monthTitle">YYYY. MM.</span></div>
-      </div>
-
-      <div class="weekday">
-        <div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div>
-      </div>
-
+      <div class="topbar"><div class="title"><span id="monthTitle">YYYY. MM.</span></div></div>
+      <div class="weekday"><div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div></div>
       <div class="grid" id="grid"></div>
     </div>
   </div>
 
-  <!-- 모달(앱에서 편집할 때 사용, 캡처에는 보통 안 뜸) -->
-  <div id="modal">
-    <div class="sheet">
-      <h3 id="modalDate">YYYY-MM-DD 출근/상태</h3>
-      <select id="timeSelect">
-        <option value="">선택</option>
-        <option value="7시">7시</option><option value="8시">8시</option>
-        <option value="12시">12시</option><option value="휴무">휴무</option>
-        <option value="연차">연차</option><option value="병가">병가</option>
-        <option value="공가">공가</option><option value="출장">출장</option>
-        <option value="돌봄">돌봄</option><option value="사가독서">사가독서</option>
-        <option value="체련대회">체련대회</option>
-      </select>
-      <div class="controls">
-        <button class="primary" id="saveBtn">저장</button>
-        <button class="danger" id="clearBtn">삭제</button>
-        <button id="cancelBtn">취소</button>
-      </div>
-    </div>
-  </div>
-
 <script>
-  /* ===== 상수/Element ===== */
-  const WEBAPP_URL  = 'https://script.google.com/macros/s/AKfycbwA1CtxLfbziu52wTUa-R4TKrN4NQajVtFKDVwYBFhGalUPU3QcHbK24mueAMkI8DLM/exec';
-  const grid=document.getElementById('grid');
-  const monthTitle=document.getElementById('monthTitle');
-  const modal=document.getElementById('modal');
-  const modalDate=document.getElementById('modalDate');
-  const timeSelect=document.getElementById('timeSelect');
-  const saveBtn=document.getElementById('saveBtn');
-  const clearBtn=document.getElementById('clearBtn');
-  const cancelBtn=document.getElementById('cancelBtn');
+  // === 설정 ===
+  const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwA1CtxLfbziu52wTUa-R4TKrN4NQajVtFKDVwYBFhGalUPU3QcHbK24mueAMkI8DLM/exec';
 
-  /* ===== 상태 ===== */
-  let state=(()=>{try{const s=localStorage.getItem('lastView');if(s){const o=JSON.parse(s);if(o.year&&o.month>=0)return o;}}catch(e){};const n=new Date();return{year:n.getFullYear(),month:n.getMonth()};})();
-  let selectedKey=null; let sheetData={};
+  // === 엘리먼트 ===
+  const grid = document.getElementById('grid');
+  const monthTitle = document.getElementById('monthTitle');
 
-  /* ===== 유틸 ===== */
-  const pad=n=>n.toString().padStart(2,'0');
-  const keyOf=(y,m,d)=>`${y}-${pad(m+1)}-${pad(d)}`;
-  function fetchWithTimeout(url,ms,init={}){ const ctl=new AbortController(); const t=setTimeout(()=>ctl.abort('timeout'),ms); return fetch(url,{...init,signal:ctl.signal}).finally(()=>clearTimeout(t)); }
+  // === 상태/유틸 ===
+  let state = (()=>{try{const s=localStorage.getItem('lastView');if(s){const o=JSON.parse(s);if(o.year&&o.month>=0)return o;}}catch(e){};const n=new Date();return{year:n.getFullYear(),month:n.getMonth()};})();
+  let sheetData = {};
+  const pad = n => n.toString().padStart(2,'0');
+  const keyOf = (y,m,d)=>`${y}-${pad(m+1)}-${pad(d)}`;
+  const fetchWithTimeout=(u,ms,i={})=>{const c=new AbortController();const t=setTimeout(()=>c.abort('timeout'),ms);return fetch(u,{...i,signal:c.signal}).finally(()=>clearTimeout(t));};
 
   async function reloadFromSheet(){
-    const r=await fetchWithTimeout(WEBAPP_URL+'?_='+Date.now(), 6000);
-    const j=await r.json(); if(j&&j.ok) sheetData=j.data||{};
+    try{
+      const r = await fetchWithTimeout(WEBAPP_URL+'?_='+(Date.now()), 6000);
+      const j = await r.json();
+      if(j && j.ok) sheetData = j.data || {};
+    }catch(e){ sheetData = {}; }
   }
 
-  /* ===== 달력 그리기 ===== */
   function drawCalendar(){
     const y=state.year,m=state.month;
     monthTitle.textContent=`${y}. ${pad(m+1)}.`;
+
     const firstDay=new Date(y,m,1).getDay();
     const lastDate=new Date(y,m+1,0).getDate();
     const prevLast=new Date(y,m,0).getDate();
@@ -166,8 +88,7 @@
       const dateEl=document.createElement('div'); dateEl.className='date'; dateEl.textContent=dNum;
       if(isEdge) cell.classList.add('edge'); cell.appendChild(dateEl);
 
-      const k=keyOf(cYear,cMonth,dNum); cell.dataset.key=k;
-
+      const k=keyOf(cYear,cMonth,dNum);
       const val=sheetData[k];
       if(val){
         const t=document.createElement('div'); t.className='time'; t.textContent=val;
@@ -187,21 +108,11 @@
     }
   }
 
-  /* ===== 초기화 ===== */
   (async()=>{
     await reloadFromSheet();
     drawCalendar();
-    // 렌더 완료 신호 (puppeteer가 이걸 기다립니다)
-    document.body.setAttribute('data-ready','1');
+    document.body.setAttribute('data-ready','1'); // 👈 캡처 스크립트가 이 신호를 기다림
   })();
-
-  /* 모달(앱에서만 사용) */
-  function openModal(key,value){selectedKey=key;modalDate.textContent=key+' 출근/상태';timeSelect.value=value||'';modal.classList.add('show');}
-  function closeModal(){modal.classList.remove('show');}
-  saveBtn.addEventListener('click',async()=>{if(!selectedKey)return;/* 생략 */ closeModal();});
-  clearBtn.addEventListener('click',async()=>{if(!selectedKey)return;/* 생략 */ closeModal();});
-  cancelBtn.addEventListener('click',closeModal);
-  modal.addEventListener('click',e=>{if(e.target===modal)closeModal();});
 </script>
 </body>
 </html>
