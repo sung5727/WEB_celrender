@@ -1,7 +1,7 @@
 name: Capture Calendar (mobile shot)
 
 on:
-  workflow_dispatch: # 수동 실행만
+  workflow_dispatch:
 
 jobs:
   capture:
@@ -13,7 +13,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      # 한글/이모지 깨짐 방지 (필수)
       - name: Install Korean fonts
         run: |
           sudo apt-get update
@@ -24,33 +23,27 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install puppeteer (local)
-        run: |
-          npm init -y >/dev/null 2>&1 || true
-          npm install puppeteer@22
-
-      # 원격(main)과 완전히 동기화(깨끗한 작업트리) → 충돌 예방
       - name: Sync with origin/main (clean workspace)
         run: |
           git fetch origin main
           git reset --hard origin/main
           git clean -fd
+          rm -rf node_modules package-lock.json
+
+      # 🟢 puppeteer 설치 추가
+      - name: Install puppeteer
+        run: |
+          npm init -y >/dev/null 2>&1 || true
+          npm install puppeteer@22
 
       - name: Run capture.js
         run: node capture.js
 
       - name: Verify output
         run: |
-          echo "::group::tree"
-          ls -al
-          ls -al docs || true
           ls -al docs/capture || true
-          echo "::endgroup::"
 
-      # 변경만 커밋 → 최신 main을 rebase로 받아 푸시
       - name: Commit & push image (rebase)
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
           mkdir -p docs/capture
@@ -63,7 +56,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git add docs/capture/calendar_mobile.png
-          git commit -m "chore: update mobile calendar screenshot $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          git commit -m "chore: update screenshot $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
           git pull --rebase origin main
           git push origin HEAD:main
