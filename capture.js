@@ -1,20 +1,22 @@
-// capture.js
+// capture.js  — CommonJS
 const puppeteer = require('puppeteer');
 
 const URL = 'https://sung5727.github.io/WEB_celrender/';
 const OUT = 'docs/capture/calendar_mobile.png';
 
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 (async () => {
   const browser = await puppeteer.launch({
     headless: 'new',
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--lang=ko-KR,ko'],
+    defaultViewport: null,
   });
 
   try {
     const page = await browser.newPage();
 
+    // 모바일(픽셀7 느낌)
     await page.emulate({
       viewport: { width: 412, height: 915, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
       userAgent:
@@ -24,41 +26,36 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
     await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
-    try { await page.evaluate(() => document.fonts && document.fonts.ready); } catch {}
+    // 1) 캘린더 박스 존재
+    await page.waitForSelector('#calendarCapture', { timeout: 60000 });
 
-    const start = Date.now();
-    while (Date.now() - start < 60000) {
-      const ready = await page.evaluate(() => {
-        const title = document.getElementById('monthTitle')?.textContent || '';
-        const titleOk = /\d{4}\.\s*\d{2}\./.test(title);
-        const cells = document.querySelectorAll('#grid .cell').length;
-        return titleOk && cells > 0;
-      });
-      if (ready) break;
-      await sleep(400);
-    }
+    // 2) 셀 렌더(그리드에 자식이 생길 때까지)
+    await page.waitForFunction(
+      () => document.querySelector('#calendarCapture .grid')?.children?.length > 0,
+      { timeout: 60000 }
+    );
 
-    try { await page.waitForNetworkIdle({ idleTime: 800, timeout: 10000 }); } catch {}
-    await sleep(500);
+    // 3) 타이틀에 "YYYY. MM." 패턴 보일 때
+    await page.waitForFunction(
+      () => /\d{4}\.\s*\d{2}\./.test(document.getElementById('monthTitle')?.textContent || ''),
+      { timeout: 30000 }
+    );
 
-    const rect = await page.evaluate(() => {
-      const el = document.querySelector('.card');
-      if (!el) return null;
-      const r = el.getBoundingClientRect();
-      return { x: Math.max(0, r.x), y: Math.max(0, r.y), width: r.width, height: r.height };
-    });
-    if (!rect) throw new Error('.card not found');
+    // 4) 페이지에서 ‘준비됨’ 신호가 있으면 더 좋음(당신의 index.html이 이미 넣어둠)
+    await page.waitForSelector('body[data-ready="1"]', { timeout: 5000 }).catch(() => {});
 
-    await page.screenshot({
-      path: OUT,
-      type: 'png',
-      clip: rect,
-      captureBeyondViewport: true,
-    });
+    // 네트워크 살짝 안정화 + 여유
+    await page.waitForNetworkIdle({ idleTime: 800, timeout: 10000 }).catch(() => {});
+    await sleep(800);
 
-    console.log('Saved:', OUT);
+    // 캘린더 영역만 캡처
+    const el = await page.$('#calendarCapture');
+    if (!el) throw new Error('#calendarCapture not found');
+
+    await el.screenshot({ path: OUT, type: 'png' });
+    console.log('✅ Saved:', OUT);
   } catch (e) {
-    console.error('Capture failed:', e);
+    console.error('❌ Capture failed:', e);
     process.exitCode = 1;
   } finally {
     await browser.close();
