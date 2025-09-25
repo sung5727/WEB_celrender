@@ -46,7 +46,7 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
           const titleOk = /\d{4}\.\s*\d{2}\./.test(title);
           return cells > 0 && titleOk;
         });
-        if (오케이) return true;
+        if (ok) return true;
         await sleep(300);
       }
       return false;
