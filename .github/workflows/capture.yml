@@ -1,51 +1,38 @@
-name: Capture Calendar (mobile shot)
+- name: Commit & push image (rebase-safe)
+      shell: bash
+      run: |
+        set -e
 
-on:
-  workflow_dispatch:
+        # 0) 로그로 실제 파일 해시/시간 확인
+        echo "== after capture =="
+        ls -l --full-time docs/capture/calendar_mobile.png || true
+        sha256sum docs/capture/calendar_mobile.png || true
 
-jobs:
-  capture:
-    runs-on: ubuntu-latest
+        # 1) Git 사용자 설정
+        git config user.name  "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: true
+        # 2) 원격 동기화 먼저(여기서 로컬 변경 없음이 중요)
+        git fetch origin main
+        git checkout -B main
+        git reset --hard origin/main     # 깨끗한 워킹트리 보장
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+        # 3) 생성된 파일 덮어쓰기
+        #    (위 reset 때문에 파일이 지워졌을 수 있으니 다시 복사/이동했다면 여기서 배치)
+        #    작업 디렉터리 기준으로 파일이 이미 docs/capture/ 안에 있으면 생략 가능
 
-      - name: Install puppeteer
-        run: |
-          npm init -y >/dev/null 2>&1 || true
-          npm install puppeteer@22
+        # 4) 변경 여부 확인 후 커밋/푸시
+        git add docs/capture/calendar_mobile.png
 
-      - name: Run capture.js
-        run: node capture.js
+        if git diff --cached --quiet; then
+          echo "No diff for calendar_mobile.png (content identical) – nothing to commit."
+          # 정말 ‘업데이트 흔적’을 남기고 싶다면 아래 주석 해제(빈 커밋):
+          # git commit --allow-empty -m "chore: keep screenshot ${GITHUB_RUN_ID}"
+          # git push origin HEAD:main
+          exit 0
+        fi
 
-      - name: Verify output
-        run: |
-          mkdir -p docs/capture
-          test -f docs/capture/calendar_mobile.png || (echo "PNG not found!" && exit 1)
-          echo "SHA256:"
-          sha256sum docs/capture/calendar_mobile.png
-          git status --porcelain=v1 docs/capture/calendar_mobile.png || true
-
-      - name: Commit & push image (force overwrite)
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          git add docs/capture/calendar_mobile.png || true
-
-          if git diff --cached --quiet -- docs/capture/calendar_mobile.png; then
-            echo "No diff for calendar_mobile.png (identical content) — skipping commit."
-          else
-            git commit -m "chore: update mobile calendar screenshot $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-            # 충돌 방지 위해 pull 제거하고 그냥 force push
-            git push origin HEAD:main --force
-          fi
+        git commit -m "chore: update mobile calendar screenshot $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+        # 충돌 시 한번 더 시도
+        git pull --rebase origin main || true
+        git push origin HEAD:main || git push --force-with-lease origin HEAD:main
