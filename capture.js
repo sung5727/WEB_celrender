@@ -34,7 +34,7 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
         const title = document.getElementById('monthTitle');
         return cells > 0 && !!title && (title.textContent || '').trim().length > 0;
       });
-      if (오케이) break;
+      if (ok) break;
       await sleep(300);
     }
 
