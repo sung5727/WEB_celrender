@@ -1,13 +1,11 @@
 name: Capture Calendar (mobile shot)
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: # 수동 실행만
 
 jobs:
   capture:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout
@@ -15,40 +13,57 @@ jobs:
         with:
           fetch-depth: 0
 
+      # 한글/이모지 깨짐 방지 (필수)
+      - name: Install Korean fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fonts-noto-cjk fonts-noto-color-emoji
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '20'
 
       - name: Install puppeteer (local)
         run: |
           npm init -y >/dev/null 2>&1 || true
-          npm i puppeteer@22
+          npm install puppeteer@22
+
+      # 원격(main)과 완전히 동기화(깨끗한 작업트리) → 충돌 예방
+      - name: Sync with origin/main (clean workspace)
+        run: |
+          git fetch origin main
+          git reset --hard origin/main
+          git clean -fd
 
       - name: Run capture.js
         run: node capture.js
 
-      # ★ 생성 확인(여기서 실제로 파일이 보이면 OK)
       - name: Verify output
         run: |
-          echo "PWD=$(pwd)"
-          ls -la
-          ls -la docs || true
-          ls -la docs/capture || true
+          echo "::group::tree"
+          ls -al
+          ls -al docs || true
+          ls -al docs/capture || true
+          echo "::endgroup::"
 
+      # 변경만 커밋 → 최신 main을 rebase로 받아 푸시
       - name: Commit & push image (rebase)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -e
+          mkdir -p docs/capture
+          if git diff --quiet --exit-code docs/capture/calendar_mobile.png; then
+            echo "no changes"
+            exit 0
+          fi
+
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # 변경 사항 확인
-          if git diff --quiet --exit-code -- docs/capture/calendar_mobile.png; then
-            echo "no changes"; exit 0
-          fi
-
-          git fetch origin main
-          git pull --rebase origin main
-
           git add docs/capture/calendar_mobile.png
           git commit -m "chore: update mobile calendar screenshot $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+
+          git pull --rebase origin main
           git push origin HEAD:main
