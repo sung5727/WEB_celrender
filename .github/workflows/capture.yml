@@ -1,13 +1,11 @@
 name: Capture Calendar (mobile shot)
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}
   push:
     paths:
       - "capture.js"
       - ".github/workflows/capture.yml"
-      - "package.json"
-      - "package-lock.json"
 
 jobs:
   capture:
@@ -16,25 +14,39 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # rebase용
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: 20
 
-      - name: Install deps
-        run: npm ci || npm i
+      - name: Install Korean fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fonts-noto-cjk fonts-noto-color-emoji
+
+      - name: Install puppeteer (local)
+        run: npm install puppeteer@22
 
       - name: Run capture
         run: node capture.js
 
-      - name: Commit & push image
+      - name: Commit & push image (rebase)
+        if: success()
         run: |
-          git config user.name "github-actions[bot]"
+          git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # 혹시 다른 커밋이 먼저 올라왔으면 rebase로 따라가고
           git fetch origin main
           git pull --rebase origin main || true
+
+          # 폴더 보장
           mkdir -p docs/capture
+
+          # 변경 파일 스테이징/커밋/푸시
           git add docs/capture/calendar_mobile.png
-          git commit -m "chore: update screenshot $(date -u '+%Y-%m-%dT%H:%M:%SZ')" || echo "no changes"
+          git commit -m "chore: update screenshot $(date -u +'%Y-%m-%dT%H:%M:%SZ')" || echo "no changes"
           git push origin HEAD:main
